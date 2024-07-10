@@ -36,7 +36,6 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, Error> {
         let mut this = template.clone();
         for (key, value) in object.as_object().unwrap() {
             let key = format!("{{{}}}", key);
-            println!("{:?}, {:?}", key, value);
             this = this.replace(key.as_str(), value.as_str().unwrap());
         }
         contents.push_str(&this);
@@ -62,7 +61,7 @@ fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, Error> {
             )
             .unwrap(),
         );
-        println!("Found: {:?}", found.as_str())
+        println!("Using: {:?}", found.as_str())
     }
 
     let re_template = Regex::new(TEMPLATE_PATTERN).unwrap();
@@ -80,7 +79,7 @@ fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, Error> {
             )
             .unwrap(),
         );
-        println!("Found: {:?}", found.as_str())
+        println!("Using: {:?}", found.as_str())
     }
     return Ok(string);
 }
