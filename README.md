@@ -1,4 +1,5 @@
 # Simple Build tool
+
 - [ ] Check for circular deps
 - [ ] Implement MD rendering (external lib)
 - [ ] Look into testing
@@ -11,6 +12,71 @@
 - [x] Get templates working
 - [x] Get components working
 - [x] Copy files from /public to /dist
+
+# Docs
+
+The file tree should look something like this:
+
+```
+.
+└── src
+   ├── components
+   │  ├── Component.html
+   │  └── Folder
+   │     └── Component.html
+   ├── data
+   │  └── Something.json
+   ├── pages
+   │  ├── folder
+   │  │  └── page.html
+   │  └── index.html
+   ├── public
+   │  ├── image.png
+   │  ├── folder
+   │  │  └── image2.png
+   └── templates
+      └── Something.html
+```
+### Components
+
+Components, and folders in /components must be in `PascalCase`. The first letter must be capitalized.
+
+To use a component:
+
+```html
+<Component />
+```
+
+It searches from /components, so if a component is in a subfolder do this:
+
+```html
+<Folder/Component />
+```
+
+### Templates
+
+The templates are stored in /templates, and the data for the corresponding template is in /data.
+
+A data file should have the same name as the template file. Keep in mind the template file is the one that's being repeated.
+
+To use:
+
+```html
+<-{Template} />
+```
+
+And in templates/Template.html and data/Template.json,
+
+```html
+<p>{something}</p>
+```
+Will match
+```json
+[
+  { "something" : "a"},
+  { "something" : "b"},
+]
+```
 
 ---
 
