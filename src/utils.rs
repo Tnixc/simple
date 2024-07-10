@@ -8,7 +8,7 @@ use std::str;
 use std::{io::Error, path::PathBuf};
 
 const COMPONENT_PATTERN: &str = r"<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>";
-const TEMPLATE_PATTERN: &str = r"<\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
+const TEMPLATE_PATTERN: &str = r"<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
 
 // Thank you ChatGPT, couldn't have done this without you.
 
@@ -73,7 +73,7 @@ fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, Error> {
                 src,
                 found
                     .as_str()
-                    .trim_start_matches("<{")
+                    .trim_start_matches("<-{")
                     .trim_end_matches("/>")
                     .trim()
                     .trim_end_matches("}"),
