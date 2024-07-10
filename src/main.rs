@@ -25,7 +25,7 @@ fn main() -> io::Result<()> {
     }
     fs::create_dir(dir.join("dist"))?;
 
-    utils::copy_into(&public, &dist);
+    utils::copy_into(&public, &dist)?;
 
     utils::process_pages(&dir, &src, src.clone(), pages)?;
     Ok(())
