@@ -21,6 +21,6 @@ fn main() -> io::Result<()> {
         fs::remove_dir_all(dir.join("dist"));
     }
     fs::create_dir(dir.join("dist"));
-    utils::process_pages(src, "pages");
+    utils::process_pages(src, pages);
     Ok(())
 }
