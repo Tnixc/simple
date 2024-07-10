@@ -1,5 +1,5 @@
 mod utils;
-use rouille::Request;
+use notify::{RecursiveMode, Watcher};
 use rouille::Response;
 use std::env;
 use std::fs;
@@ -56,9 +56,31 @@ fn build(args: Vec<String>) -> io::Result<()> {
     Ok(())
 }
 
+fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
+    let args: Vec<String> = env::args().collect();
+
+    match res {
+        Ok(event) => {
+            build(args.clone()).expect("Build failed");
+            println!("event: {:?}", event);
+        }
+        Err(e) => println!("watch error: {:?}", e),
+    }
+}
+
 fn dev(args: Vec<String>) -> () {
-    println!("Now listening on localhost:1717");
+    build(args.clone()).expect("build failed");
     let dist = PathBuf::from(&args[2]).join("dist");
+    let src = PathBuf::from(&args[2]).join("src");
+
+    let mut watcher = notify::recommended_watcher(|res| dev_watch_handler(res)).unwrap();
+
+    watcher
+        .watch(&src, RecursiveMode::Recursive)
+        .expect("watch failed");
+
+    println!("Now listening on localhost:1717");
+
     rouille::start_server("localhost:1717", move |request| {
         {
             let mut response = rouille::match_assets(request, dist.to_str().unwrap());
