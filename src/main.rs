@@ -18,9 +18,10 @@ fn main() -> io::Result<()> {
     let pages = src.join("pages");
 
     if dir.join("dist").exists() {
-        fs::remove_dir_all(dir.join("dist"));
+        fs::remove_dir_all(dir.join("dist"))?;
     }
-    fs::create_dir(dir.join("dist"));
-    utils::process_pages(src, pages);
+    fs::create_dir(dir.join("dist"))?;
+
+    utils::process_pages(&src, src.clone(), pages);
     Ok(())
 }
