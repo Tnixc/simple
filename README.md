@@ -12,6 +12,10 @@
 - [x] Get components working
 - [x] Copy files from /public to /dist
 
+---
+
+It's very little code. Basically a glorified build script but I think it's pretty neat.
+
 <details>
 <summary>Random notes</summary>
 ![in Templates](https://github.com/Tnixc/simple/assets/85466117/e90a0455-320b-4d37-8ad2-2efd265171e3)
