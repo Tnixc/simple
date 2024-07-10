@@ -5,8 +5,10 @@ use std::io;
 use std::path::PathBuf;
 
 fn main() -> io::Result<()> {
+    run()
+}
+fn run() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
-    println!("{:?}", args);
 
     if args.len() < 2 {
         return Ok(());
