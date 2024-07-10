@@ -14,7 +14,6 @@ fn main() -> io::Result<()> {
 
     let dir = PathBuf::from(&args[1]);
     let src = dir.join("src");
-    let components = src.join("components");
     let pages = src.join("pages");
 
     if dir.join("dist").exists() {
@@ -22,6 +21,6 @@ fn main() -> io::Result<()> {
     }
     fs::create_dir(dir.join("dist"))?;
 
-    utils::process_pages(&src, src.clone(), pages);
+    utils::process_pages(&dir, &src, src.clone(), pages)?;
     Ok(())
 }
