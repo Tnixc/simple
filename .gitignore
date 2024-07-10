@@ -1,2 +1,4 @@
 /target
 *.local
+/testing
+.DS_Store
