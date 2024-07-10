@@ -67,19 +67,19 @@ pub fn process_pages(
             process_pages(&dir, &src, source.join(&this), this)?;
         } else {
             let result = page(src, entry.as_ref().unwrap());
-            // let mut f = File::create_new(
-            //     src.parent()
-            //         .unwrap()
-            //         .join("dist")
-            //         .join(entry.unwrap().path()),
-            // )?;
-
-            println!(
-                "PAGE RETURNED : {:?}",
-                dir.join("dist")
-                    .join(entry.unwrap().path().strip_prefix(src).unwrap()) // definitely cursed
+            let path = dir.join("dist").join(
+                entry
+                    .unwrap()
+                    .path()
+                    .strip_prefix(src)
+                    .unwrap()
+                    .strip_prefix("pages")
+                    .unwrap(),
             );
-            // f.write(result.unwrap().as_bytes())?;
+            fs::create_dir_all(path.parent().unwrap())?;
+            let mut f = File::create_new(&path)?;
+            println!("{:?}", path);
+            f.write(result.unwrap().as_bytes())?;
         }
     }
     Ok(())
