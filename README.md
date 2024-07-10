@@ -8,7 +8,7 @@
 - [ ] Implement MD rendering (external lib)
 - [ ] Look into testing
 - [ ] Give warnings for unused and not found components
-- [ ] Watcher or HMR (HMR is too complex so probably not)
+- [x] Watcher or HMR (HMR is too complex so probably not) -> Watcher is done but it's not very good.
 - [ ] CSS scoping in components but waiting for [@scope general support](https://developer.mozilla.org/en-US/docs/Web/CSS/@scope)
 - [ ] Type safety warnings when template doesn't match data
 - [ ] Speed tests.
