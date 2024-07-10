@@ -1,5 +1,7 @@
 # Simple Build tool
 
+- [ ] Make it so it ignores commented out lines.
+- [ ] Make it so that 
 - [ ] Check for circular deps
 - [ ] Implement MD rendering (external lib)
 - [ ] Look into testing
