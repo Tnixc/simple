@@ -1,5 +1,4 @@
 use regex::Regex;
-use serde_json::map::Keys;
 use serde_json::Value;
 use std::fs;
 use std::fs::File;
@@ -10,7 +9,6 @@ use std::{io::Error, path::PathBuf};
 
 const COMPONENT_PATTERN: &str = r"<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>";
 const TEMPLATE_PATTERN: &str = r"<\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
-const PLACEHOLDER_PATTERN: &str = r"\{[A-Za-z_]([A-Za-z_.0-9]*)\}";
 
 // Thank you ChatGPT, couldn't have done this without you.
 
@@ -24,8 +22,6 @@ pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, Error> {
 }
 
 pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, Error> {
-    let re_placeholder = Regex::new(PLACEHOLDER_PATTERN).unwrap();
-
     let template_path = src.join("templates").join(name).with_extension("html");
     let template = String::from_utf8(fs::read(template_path).unwrap()).unwrap();
 
@@ -39,8 +35,9 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, Error> {
     for object in items {
         let mut this = template.clone();
         for (key, value) in object.as_object().unwrap() {
+            let key = format!("{{{}}}", key);
             println!("{:?}, {:?}", key, value);
-            this = this.replace(key, value.as_str().unwrap());
+            this = this.replace(key.as_str(), value.as_str().unwrap());
         }
         contents.push_str(&this);
     }
