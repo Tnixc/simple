@@ -84,3 +84,24 @@ pub fn process_pages(
     }
     Ok(())
 }
+pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), Error> {
+    if !dist.exists() {
+        fs::create_dir_all(dist)?;
+    }
+
+    let entries = fs::read_dir(public)?;
+    for entry in entries {
+        let entry = entry.unwrap().path();
+        let dest_path = dist.join(entry.strip_prefix(public).unwrap());
+
+        if entry.is_dir() {
+            copy_into(&entry, &dest_path)?;
+        } else {
+            if let Some(parent) = dest_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(&entry, &dest_path)?;
+        }
+    }
+    Ok(())
+}

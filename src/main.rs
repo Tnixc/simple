@@ -13,13 +13,19 @@ fn main() -> io::Result<()> {
     }
 
     let dir = PathBuf::from(&args[1]);
+
     let src = dir.join("src");
+    let dist = dir.join("dist");
+
     let pages = src.join("pages");
+    let public = src.join("public");
 
     if dir.join("dist").exists() {
         fs::remove_dir_all(dir.join("dist"))?;
     }
     fs::create_dir(dir.join("dist"))?;
+
+    utils::copy_into(&public, &dist);
 
     utils::process_pages(&dir, &src, src.clone(), pages)?;
     Ok(())
