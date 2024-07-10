@@ -4,18 +4,31 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
-fn main() -> io::Result<()> {
-    run()
-}
-
-fn run() -> io::Result<()> {
+fn main() -> Result<(), io::Error> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
         return Ok(());
     }
+    let command = args[1].as_str();
+    match command {
+        "dev" => {
+            println!("No dev yet");
+            return Ok(());
+        }
+        "build" => build(args),
+        _ => {
+            println!("Unknown command");
+            return Ok(());
+        }
+    }
+}
 
-    let dir = PathBuf::from(&args[1]);
+fn build(args: Vec<String>) -> io::Result<()> {
+    if args.len() < 3 {
+        return Ok(());
+    }
+    let dir = PathBuf::from(&args[2]);
 
     let src = dir.join("src");
     let dist = dir.join("dist");
