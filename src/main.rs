@@ -1,4 +1,6 @@
 mod utils;
+use rouille::Request;
+use rouille::Response;
 use std::env;
 use std::fs;
 use std::io;
@@ -13,7 +15,7 @@ fn main() -> Result<(), io::Error> {
     let command = args[1].as_str();
     match command {
         "dev" => {
-            println!("No dev yet");
+            dev(args);
             return Ok(());
         }
         "build" => build(args),
@@ -52,4 +54,23 @@ fn build(args: Vec<String>) -> io::Result<()> {
 
     utils::process_pages(&dir, &src, src.clone(), pages)?;
     Ok(())
+}
+
+fn dev(args: Vec<String>) -> () {
+    println!("Now listening on localhost:1717");
+    let dist = PathBuf::from(&args[2]).join("dist");
+    rouille::start_server("localhost:1717", move |request| {
+        {
+            let mut response = rouille::match_assets(request, dist.to_str().unwrap());
+            if request.url() == "/" {
+                let f = fs::File::open(&dist.join("index").with_extension("html"));
+                println!("{:?}", f);
+                response = Response::from_file("text/html", f.unwrap());
+            }
+            if response.is_success() {
+                return response;
+            }
+        }
+        Response::html("404 error").with_status_code(404)
+    });
 }
