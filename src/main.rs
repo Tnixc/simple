@@ -20,10 +20,17 @@ fn main() -> io::Result<()> {
     let pages = src.join("pages");
     let public = src.join("public");
 
-    if dir.join("dist").exists() {
-        fs::remove_dir_all(dir.join("dist"))?;
+    if !dir.join("dist").exists() {
+        fs::create_dir(dir.join("dist"))?;
     }
-    fs::create_dir(dir.join("dist"))?;
+
+    for entry in dist.read_dir().unwrap() {
+        if entry.as_ref().unwrap().path().is_dir() {
+            fs::remove_dir_all(entry.unwrap().path())?;
+        } else {
+            fs::remove_file(entry.unwrap().path())?
+        }
+    }
 
     utils::copy_into(&public, &dist)?;
 
