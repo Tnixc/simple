@@ -7,6 +7,7 @@ use std::path::PathBuf;
 fn main() -> io::Result<()> {
     run()
 }
+
 fn run() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
 

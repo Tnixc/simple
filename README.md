@@ -1,7 +1,8 @@
 # Simple Build tool
 
+- [ ] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere.
 - [ ] Make it so it ignores commented out lines.
-- [ ] Make it so that 
+- [ ] Make it so that
 - [ ] Check for circular deps
 - [ ] Implement MD rendering (external lib)
 - [ ] Look into testing
