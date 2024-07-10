@@ -82,6 +82,8 @@ Will match
 ]
 ```
 
+You can use components in templates and vice versa. It recursively resolves each one so if a lot of places use a component it could become inefficient because it reads from disk every time. It also doesn't halt on circular dependencies.
+
 ---
 
 It's very little code. Basically a glorified build script but I think it's pretty neat.
