@@ -1,6 +1,7 @@
 # Simple Build tool
 
 - [ ] Commands such as `dev`, `build`, `new`.
+- [ ] Props
 - [ ] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere.
 - [ ] Make it so it ignores commented out lines.
 - [ ] Make it so that
