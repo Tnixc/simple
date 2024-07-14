@@ -18,60 +18,41 @@ use WithItem::Template;
 
 const COMPONENT_PATTERN: &str = r"<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>";
 const TEMPLATE_PATTERN: &str = r"<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
-
-// Thank you ChatGPT, couldn't have done this without you.
+// Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
 pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandleError> {
     let path = src
         .join("components")
         .join(component)
-        .with_extension(".component.html");
+        .with_extension("component.html");
 
-    let contents = fs::read(path.clone());
+    let contents = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
 
-    if contents.is_ok() {
-        return page(src, contents.unwrap());
-    } else {
-        return Err(PageHandleError {
-            error_type: ErrorType::Io,
-            item: WithItem::Component,
-            path,
-        });
-    }
+    return page(src, contents);
 }
 
 pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError> {
     let template_path = src
         .join("templates")
         .join(name)
-        .with_extension(".template.html");
-    let data_path = src.join("data").join(name).with_extension(".data.json");
+        .with_extension("template.html");
+    let data_path = src.join("data").join(name).with_extension("data.json");
 
     let template_content_utf =
-        rewrite_error(fs::read(&template_path), Template, NotFound, template_path);
+        rewrite_error(fs::read(&template_path), Template, NotFound, &template_path)?;
 
-    let template = String::from_utf8(template_content_utf).map_err(|_| PageHandleError {
-        error_type: ErrorType::Utf8,
-        item: WithItem::Template,
-        path: template_path
-            .to_owned()
-            .into_os_string()
-            .into_string()
-            .expect("Error with path decoding"),
-    })?;
+    let template = rewrite_error(
+        String::from_utf8(template_content_utf),
+        Template,
+        Utf8,
+        &template_path,
+    )?;
 
-    let data_content_utf8 = fs::read(&data_path).map_err(|_| PageHandleError {
-        error_type: ErrorType::Io,
-        item: WithItem::Data,
-        path: template_path
-            .into_os_string()
-            .into_string()
-            .expect("Error with path decoding"),
-    })?;
-
+    let data_content_utf8 = rewrite_error(fs::read(&data_path), Data, NotFound, &data_path)?;
     let data_str = str::from_utf8(&data_content_utf8).unwrap();
     let v: Value = serde_json::from_str(data_str).expect("JSON decode error");
     let items = v.as_array().expect("JSON wasn't an array");
+
     let mut contents = String::new();
     for object in items {
         let mut this = template.clone();
@@ -91,9 +72,10 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
 }
 
 fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, PageHandleError> {
-    let mut string = String::from_utf8(contents)?;
+    let mut string = rewrite_error(String::from_utf8(contents), File, Io, src)?;
 
-    let re_component = Regex::new(COMPONENT_PATTERN).unwrap();
+    let re_component =
+        Regex::new(COMPONENT_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
     for found in re_component.find_iter(&string.clone()) {
         string = string.replace(
             found.as_str(),
@@ -109,7 +91,8 @@ fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, PageHandleError> {
         println!("Using: {:?}", found.as_str())
     }
 
-    let re_template = Regex::new(TEMPLATE_PATTERN).unwrap();
+    let re_template =
+        Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
     for found in re_template.find_iter(&string.clone()) {
         string = string.replace(
             found.as_str(),
@@ -134,7 +117,8 @@ pub fn process_pages(
     source: PathBuf,
     pages: PathBuf,
 ) -> Result<(), PageHandleError> {
-    let entries = fs::read_dir(pages)?;
+    // dir is the root.
+    let entries = rewrite_error(fs::read_dir(pages), File, Io, src)?;
     for entry in entries {
         if entry.as_ref().unwrap().path().is_dir() {
             let this = entry.unwrap().path();
@@ -151,10 +135,10 @@ pub fn process_pages(
                     .strip_prefix("pages")
                     .unwrap(),
             );
-            fs::create_dir_all(path.parent().unwrap())?;
-            let mut f = std::fs::File::create_new(&path)?;
+            rewrite_error(fs::create_dir_all(path.parent().unwrap()), File, Io, src)?;
+            let mut f = rewrite_error(std::fs::File::create_new(&path), File, Io, src)?;
             println!("Writing - {:?}", path);
-            f.write(result?.as_bytes())?;
+            rewrite_error(f.write(result?.as_bytes()), File, Io, src)?;
         }
     }
     Ok(())

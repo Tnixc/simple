@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -36,7 +35,11 @@ pub struct PageHandleError {
 impl fmt::Display for PageHandleError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let item = &self.item;
-        let path = &self.to_owned().to_string();
+        let path = &self
+            .path
+            .to_str()
+            .to_owned()
+            .expect("Couldn't turn PathBuf into string");
         let err_msg = match self.error_type {
             ErrorType::NotFound => format!("The {item} on path {path} couldn't be found."),
             ErrorType::Io => format!("The {item} on path {path} encountered an IO error."),
@@ -56,11 +59,19 @@ pub fn rewrite_error<T, E>(
     result: Result<T, E>,
     item: WithItem,
     error_type: ErrorType,
-    path: PathBuf,
+    path: &PathBuf,
 ) -> Result<T, PageHandleError> {
-    result.map_err(|_| PageHandleError {
-        error_type,
-        item,
-        path,
-    })
+    if result.is_err() {
+        result.map_err(|_| PageHandleError {
+            error_type,
+            item,
+            path: path.to_owned(),
+        })
+    } else {
+        result.map_err(|_| PageHandleError {
+            error_type,
+            item,
+            path: PathBuf::new(), // small saves
+        })
+    }
 }
