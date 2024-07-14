@@ -4,39 +4,52 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::str;
-
 use std::{io::Error, path::PathBuf};
+
+use crate::error::PageHandleError;
 
 const COMPONENT_PATTERN: &str = r"<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>";
 const TEMPLATE_PATTERN: &str = r"<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
 
 // Thank you ChatGPT, couldn't have done this without you.
 
-pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, Error> {
+pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandleError> {
     let path = src
         .join("components")
         .join(component)
-        .with_extension("html");
-    let contents = fs::read(path)?;
+        .with_extension(".component.html");
+
+    let contents = fs::read(path.clone()).map_err(|e| PageHandleError::Io {
+        source: e,
+        item: path.into_os_string().into_string().unwrap(),
+    })?;
     return page(src, contents);
 }
 
-pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, Error> {
-    let template_path = src.join("templates").join(name).with_extension("html");
-    let template = String::from_utf8(fs::read(template_path).unwrap()).unwrap();
+pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError> {
+    let template_path = src
+        .join("templates")
+        .join(name)
+        .with_extension(".template.html");
+    let data_path = src.join("data").join(name).with_extension(".data.json");
 
-    let data_path = src.join("data").join(name).with_extension("json");
-    let data = fs::read(data_path)?;
+    let template = String::from_utf8(fs::read(&template_path)?)?;
+    let data = fs::read(&data_path)?;
+
     let data_str = str::from_utf8(&data).unwrap();
-
-    let v: Value = serde_json::from_str(data_str)?;
-    let items = v.as_array().unwrap();
+    let v: Value = serde_json::from_str(data_str).expect("JSON decode error");
+    let items = v.as_array().expect("JSON wasn't an array");
     let mut contents = String::new();
     for object in items {
         let mut this = template.clone();
-        for (key, value) in object.as_object().unwrap() {
+        for (key, value) in object.as_object().expect("Invalid object in JSON") {
             let key = format!("{{{}}}", key);
-            this = this.replace(key.as_str(), value.as_str().unwrap());
+            this = this.replace(
+                key.as_str(),
+                value
+                    .as_str()
+                    .expect("JSON object value couldn't be decoded to string"),
+            );
         }
         contents.push_str(&this);
     }
@@ -44,8 +57,8 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, Error> {
     return page(src, contents.into_bytes());
 }
 
-fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, Error> {
-    let mut string = String::from_utf8(contents).expect("Invalid UTF-8");
+fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, PageHandleError> {
+    let mut string = String::from_utf8(contents)?;
 
     let re_component = Regex::new(COMPONENT_PATTERN).unwrap();
     for found in re_component.find_iter(&string.clone()) {
@@ -58,8 +71,7 @@ fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, Error> {
                     .trim_start_matches("<")
                     .trim_end_matches("/>")
                     .trim(),
-            )
-            .unwrap(),
+            )?,
         );
         println!("Using: {:?}", found.as_str())
     }
@@ -76,8 +88,7 @@ fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, Error> {
                     .trim_end_matches("/>")
                     .trim()
                     .trim_end_matches("}"),
-            )
-            .unwrap(),
+            )?,
         );
         println!("Using: {:?}", found.as_str())
     }
@@ -89,8 +100,8 @@ pub fn process_pages(
     src: &PathBuf,
     source: PathBuf,
     pages: PathBuf,
-) -> Result<(), Error> {
-    let entries = fs::read_dir(pages).unwrap();
+) -> Result<(), PageHandleError> {
+    let entries = fs::read_dir(pages)?;
     for entry in entries {
         if entry.as_ref().unwrap().path().is_dir() {
             let this = entry.unwrap().path();
@@ -110,7 +121,7 @@ pub fn process_pages(
             fs::create_dir_all(path.parent().unwrap())?;
             let mut f = File::create_new(&path)?;
             println!("Writing - {:?}", path);
-            f.write(result.unwrap().as_bytes())?;
+            f.write(result?.as_bytes())?;
         }
     }
     Ok(())
