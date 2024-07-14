@@ -1,3 +1,4 @@
+mod error;
 mod utils;
 use notify::{RecursiveMode, Watcher};
 use rouille::Response;
@@ -52,7 +53,7 @@ fn build(args: Vec<String>) -> io::Result<()> {
 
     utils::copy_into(&public, &dist)?;
 
-    utils::process_pages(&dir, &src, src.clone(), pages)?;
+    let _ = utils::process_pages(&dir, &src, src.clone(), pages).inspect_err(|f| eprintln!("{f}"));
     Ok(())
 }
 
