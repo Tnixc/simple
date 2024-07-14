@@ -1,3 +1,6 @@
+use crate::error::ErrorType;
+use crate::error::PageHandleError;
+use crate::error::WithItem;
 use regex::Regex;
 use serde_json::Value;
 use std::fs;
@@ -5,8 +8,6 @@ use std::fs::File;
 use std::io::Write;
 use std::str;
 use std::{io::Error, path::PathBuf};
-
-use crate::error::PageHandleError;
 
 const COMPONENT_PATTERN: &str = r"<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>";
 const TEMPLATE_PATTERN: &str = r"<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
@@ -19,11 +20,17 @@ pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandl
         .join(component)
         .with_extension(".component.html");
 
-    let contents = fs::read(path.clone()).map_err(|e| PageHandleError::Io {
-        source: e,
-        item: path.into_os_string().into_string().unwrap(),
-    })?;
-    return page(src, contents);
+    let contents = fs::read(path.clone());
+
+    if contents.is_ok() {
+        return page(src, contents.unwrap());
+    } else {
+        return Err(PageHandleError {
+            error_type: ErrorType::Io,
+            item: WithItem::Component,
+            path: path.into_os_string().into_string().expect("E"),
+        });
+    }
 }
 
 pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError> {
