@@ -1,13 +1,20 @@
+use crate::error::rewrite_error;
 use crate::error::ErrorType;
 use crate::error::PageHandleError;
 use crate::error::WithItem;
 use regex::Regex;
 use serde_json::Value;
 use std::fs;
-use std::fs::File;
 use std::io::Write;
 use std::str;
 use std::{io::Error, path::PathBuf};
+use ErrorType::Io;
+use ErrorType::NotFound;
+use ErrorType::Utf8;
+use WithItem::Component;
+use WithItem::Data;
+use WithItem::File;
+use WithItem::Template;
 
 const COMPONENT_PATTERN: &str = r"<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>";
 const TEMPLATE_PATTERN: &str = r"<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
@@ -28,7 +35,7 @@ pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandl
         return Err(PageHandleError {
             error_type: ErrorType::Io,
             item: WithItem::Component,
-            path: path.into_os_string().into_string().expect("E"),
+            path,
         });
     }
 }
@@ -40,10 +47,29 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
         .with_extension(".template.html");
     let data_path = src.join("data").join(name).with_extension(".data.json");
 
-    let template = String::from_utf8(fs::read(&template_path)?)?;
-    let data = fs::read(&data_path)?;
+    let template_content_utf =
+        rewrite_error(fs::read(&template_path), Template, NotFound, template_path);
 
-    let data_str = str::from_utf8(&data).unwrap();
+    let template = String::from_utf8(template_content_utf).map_err(|_| PageHandleError {
+        error_type: ErrorType::Utf8,
+        item: WithItem::Template,
+        path: template_path
+            .to_owned()
+            .into_os_string()
+            .into_string()
+            .expect("Error with path decoding"),
+    })?;
+
+    let data_content_utf8 = fs::read(&data_path).map_err(|_| PageHandleError {
+        error_type: ErrorType::Io,
+        item: WithItem::Data,
+        path: template_path
+            .into_os_string()
+            .into_string()
+            .expect("Error with path decoding"),
+    })?;
+
+    let data_str = str::from_utf8(&data_content_utf8).unwrap();
     let v: Value = serde_json::from_str(data_str).expect("JSON decode error");
     let items = v.as_array().expect("JSON wasn't an array");
     let mut contents = String::new();
@@ -126,7 +152,7 @@ pub fn process_pages(
                     .unwrap(),
             );
             fs::create_dir_all(path.parent().unwrap())?;
-            let mut f = File::create_new(&path)?;
+            let mut f = std::fs::File::create_new(&path)?;
             println!("Writing - {:?}", path);
             f.write(result?.as_bytes())?;
         }
