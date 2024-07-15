@@ -25,10 +25,14 @@ fn main() -> Result<(), &'static str> {
         "build" => {
             build(args, false).map_err(|e| {
                 println!("Error with build: {:?}", e);
-                return "Error with build";
+                return "Build failed";
             })?;
             return Ok(());
         }
+        "new" => new::new(args).map_err(|e| {
+            println!("Error with scaffolding: {:?}", e);
+            return "Scaffold failed";
+        }),
         _ => {
             println!("Unknown command");
             return Ok(());
@@ -60,7 +64,8 @@ fn build(args: Vec<String>, dev: bool) -> io::Result<()> {
         }
     }
 
-    utils::copy_into(&public, &dist)?;
+    utils::copy_into(&public, &dist)
+        .inspect_err(|f| println!("Failed to copy files from `public` to `dist`: {f}"))?;
 
     let _ =
         utils::process_pages(&dir, &src, src.clone(), pages, dev).inspect_err(|f| eprintln!("{f}"));
