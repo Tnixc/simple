@@ -84,9 +84,9 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
 }
 
 fn dev(args: Vec<String>) -> () {
-    println!("|---------------------------------|");
-    println!("| Now listening on localhost:1717 |");
-    println!("|---------------------------------|");
+    println!("|----------------------------------------|");
+    println!("| Now listening on http://localhost:1717 |");
+    println!("|----------------------------------------|");
 
     build(args.clone(), true).expect("build failed");
 
