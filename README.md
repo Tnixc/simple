@@ -3,7 +3,7 @@
 - [ ] Commands such as `dev`, `build`, `new`.
 - [ ] Props and slots
 - [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
-- [ ] Make it so it ignores commented out lines.
+- [x] Make it so it ignores commented out lines.
 - [ ] Check for circular deps
 - [ ] Implement MD rendering (external lib)
 - [ ] Look into testing

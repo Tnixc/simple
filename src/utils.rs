@@ -2,7 +2,7 @@ use crate::error::rewrite_error;
 use crate::error::ErrorType;
 use crate::error::PageHandleError;
 use crate::error::WithItem;
-use regex::Regex;
+use fancy_regex::Regex;
 use serde_json::Value;
 use std::fs;
 use std::io::Write;
@@ -16,8 +16,10 @@ use WithItem::Data;
 use WithItem::File;
 use WithItem::Template;
 
-const COMPONENT_PATTERN: &str = r"<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>";
-const TEMPLATE_PATTERN: &str = r"<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>";
+const COMPONENT_PATTERN: &str =
+    r"(?<!<!--)(?:.*?)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>(?!.*?-->)";
+const TEMPLATE_PATTERN: &str =
+    r"(?<!<!--)(?:.*?)<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)";
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
 pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandleError> {
@@ -76,37 +78,45 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
 
     let re_component =
         Regex::new(COMPONENT_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
-    for found in re_component.find_iter(&string.clone()) {
-        string = string.replace(
-            found.as_str(),
-            &sub_component(
-                src,
-                found
-                    .as_str()
-                    .trim_start_matches("<")
-                    .trim_end_matches("/>")
-                    .trim(),
-            )?,
-        );
-        println!("Using: {:?}", found.as_str())
+    for f in re_component.find_iter(&string.clone()) {
+        if f.is_ok() {
+            let found = f.unwrap();
+            string = string.replace(
+                found.as_str(),
+                &sub_component(
+                    src,
+                    found
+                        .as_str()
+                        .trim()
+                        .trim_start_matches("<")
+                        .trim_end_matches("/>")
+                        .trim(),
+                )?,
+            );
+            println!("Using: {:?}", found.as_str())
+        }
     }
 
     let re_template =
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
-    for found in re_template.find_iter(&string.clone()) {
-        string = string.replace(
-            found.as_str(),
-            &sub_template(
-                src,
-                found
-                    .as_str()
-                    .trim_start_matches("<-{")
-                    .trim_end_matches("/>")
-                    .trim()
-                    .trim_end_matches("}"),
-            )?,
-        );
-        println!("Using: {:?}", found.as_str())
+    for f in re_template.find_iter(&string.clone()) {
+        if f.is_ok() {
+            let found = f.unwrap();
+            string = string.replace(
+                found.as_str(),
+                &sub_template(
+                    src,
+                    found
+                        .as_str()
+                        .trim()
+                        .trim_start_matches("<-{")
+                        .trim_end_matches("/>")
+                        .trim()
+                        .trim_end_matches("}"),
+                )?,
+            );
+            println!("Using: {:?}", found.as_str())
+        }
     }
 
     if dev {
