@@ -2,6 +2,7 @@ mod error;
 mod utils;
 use notify::{RecursiveMode, Watcher};
 use rouille::Response;
+use std::borrow::Cow;
 use std::env;
 use std::fs;
 use std::io;
@@ -95,6 +96,10 @@ fn dev(args: Vec<String>) -> () {
             if response.is_success() {
                 return response;
             }
+            response.headers = vec![(
+                Cow::from("Cache-Control"),
+                Cow::from("max-age=0, no-cache, must-revalidate, proxy-revalidate"),
+            )]
         }
         Response::html("404 error").with_status_code(404)
     });
