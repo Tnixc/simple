@@ -16,10 +16,9 @@ use WithItem::Data;
 use WithItem::File;
 use WithItem::Template;
 
-const COMPONENT_PATTERN: &str =
-    r"(?<!<!--)(?:.*?)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>(?!.*?-->)";
+const COMPONENT_PATTERN: &str = r"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>(?!.*?-->)";
 const TEMPLATE_PATTERN: &str =
-    r"(?<!<!--)(?:.*?)<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)";
+    r"(?<!<!--)<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)";
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
 pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandleError> {

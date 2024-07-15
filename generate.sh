@@ -20,9 +20,9 @@ for i in {1..1000}; do
     # touch "public/public$random_string.txt"
     # touch "templates/Template$random_string.html"
 
-    echo "<p>Component $random_string</p>" > "components/$random_string.html"
-    echo "[{\"A\": \"$random_string\"}]" > "data/$random_string.json"
-    echo "<p>Template - {A} - $random_string</p>" > "templates/$random_string.html"
+    echo "<p>Component $random_string</p>" > "components/$random_string.component.html"
+    echo "[{\"A\": \"$random_string\"}]" > "data/$random_string.data.json"
+    echo "<p>Template - {A} - $random_string</p>" > "templates/$random_string.template.html"
     echo "<p>Page $random_string</p> <br> <$random_string /> <br> <-{$random_string} />" > "pages/$random_string.html"
     # echo "Public $random_string" > "public/public$random_string.txt"
 

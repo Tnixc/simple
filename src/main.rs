@@ -1,4 +1,5 @@
 mod error;
+mod new;
 mod utils;
 use notify::{RecursiveMode, Watcher};
 use rouille::Response;
@@ -8,19 +9,26 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), &'static str> {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 2 {
-        return Ok(());
+    if args.len() < 3 {
+        return Err("Not enough arguments. Usage: simple <operation> <dir>");
     }
+
     let command = args[1].as_str();
     match command {
         "dev" => {
             dev(args);
             return Ok(());
         }
-        "build" => build(args, false),
+        "build" => {
+            build(args, false).map_err(|e| {
+                println!("Error with build: {:?}", e);
+                return "Error with build";
+            })?;
+            return Ok(());
+        }
         _ => {
             println!("Unknown command");
             return Ok(());
