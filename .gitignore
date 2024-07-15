@@ -2,3 +2,4 @@
 *.local
 /testing
 .DS_Store
+/example
