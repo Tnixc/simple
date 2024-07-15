@@ -16,7 +16,12 @@ use WithItem::Data;
 use WithItem::File;
 use WithItem::Template;
 
-const COMPONENT_PATTERN: &str = r"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>(?!.*?-->)";
+const COMPONENT_PATTERN_OPEN: &str =
+    r#"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)(\s+[a-z]+=(["'])[^"']*\4)*\s*>(?!.*?-->)"#;
+
+// const _COMPONENT_PATTERN_: &str =
+//     r"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>(?!.*?-->)";
+
 const TEMPLATE_PATTERN: &str =
     r"(?<!<!--)<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)";
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
@@ -76,21 +81,19 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
     let mut string = rewrite_error(String::from_utf8(contents), File, Io, src)?;
 
     let re_component =
-        Regex::new(COMPONENT_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
+        Regex::new(COMPONENT_PATTERN_OPEN).expect("Regex failed to parse. This shouldn't happen.");
     for f in re_component.find_iter(&string.clone()) {
         if f.is_ok() {
             let found = f.unwrap();
+            let trim = found
+                .as_str()
+                .trim()
+                .trim_start_matches("<")
+                .trim_end_matches(">")
+                .trim();
             string = string.replace(
                 found.as_str(),
-                &sub_component(
-                    src,
-                    found
-                        .as_str()
-                        .trim()
-                        .trim_start_matches("<")
-                        .trim_end_matches("/>")
-                        .trim(),
-                )?,
+                &sub_component(src, trim.split_once(" ").map(|(f, _)| f).unwrap_or(trim))?,
             );
             println!("Using: {:?}", found.as_str())
         }

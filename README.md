@@ -1,5 +1,6 @@
 # Simple Build tool
 
+- [ ] Version that actually uses [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components).
 - [x] Commands such as `dev`, `build`, `new`.
 - [ ] Props and slots
 - [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
