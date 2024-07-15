@@ -9,6 +9,7 @@
 - [ ] Look into testing
 - [ ] Give warnings for unused and not found components
 - [x] Watcher or HMR (HMR is too complex so probably not) -> Watcher is done but it's not very good.
+- [x] Live reloading with livejs.
 - [ ] CSS scoping in components but waiting for [@scope general support](https://developer.mozilla.org/en-US/docs/Web/CSS/@scope) just use tw for now
 - [ ] Type safety warnings when template doesn't match data
 - [x] Speed tests.

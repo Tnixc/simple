@@ -19,7 +19,7 @@ fn main() -> Result<(), io::Error> {
             dev(args);
             return Ok(());
         }
-        "build" => build(args),
+        "build" => build(args, false),
         _ => {
             println!("Unknown command");
             return Ok(());
@@ -27,7 +27,7 @@ fn main() -> Result<(), io::Error> {
     }
 }
 
-fn build(args: Vec<String>) -> io::Result<()> {
+fn build(args: Vec<String>, dev: bool) -> io::Result<()> {
     if args.len() < 3 {
         return Ok(());
     }
@@ -53,7 +53,8 @@ fn build(args: Vec<String>) -> io::Result<()> {
 
     utils::copy_into(&public, &dist)?;
 
-    let _ = utils::process_pages(&dir, &src, src.clone(), pages).inspect_err(|f| eprintln!("{f}"));
+    let _ =
+        utils::process_pages(&dir, &src, src.clone(), pages, dev).inspect_err(|f| eprintln!("{f}"));
     Ok(())
 }
 
@@ -61,16 +62,20 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
     let args: Vec<String> = env::args().collect();
 
     match res {
-        Ok(event) => {
-            build(args.clone()).expect("Build failed");
-            println!("event: {:?}", event);
+        Ok(_) => {
+            build(args.clone(), true).expect("Build failed");
         }
         Err(e) => println!("watch error: {:?}", e),
     }
 }
 
 fn dev(args: Vec<String>) -> () {
-    build(args.clone()).expect("build failed");
+    println!("|---------------------------------|");
+    println!("| Now listening on localhost:1717 |");
+    println!("|---------------------------------|");
+
+    build(args.clone(), true).expect("build failed");
+
     let dist = PathBuf::from(&args[2]).join("dist");
     let src = PathBuf::from(&args[2]).join("src");
 
@@ -80,14 +85,11 @@ fn dev(args: Vec<String>) -> () {
         .watch(&src, RecursiveMode::Recursive)
         .expect("watch failed");
 
-    println!("Now listening on localhost:1717");
-
     rouille::start_server("localhost:1717", move |request| {
         {
             let mut response = rouille::match_assets(request, dist.to_str().unwrap());
             if request.url() == "/" {
                 let f = fs::File::open(&dist.join("index").with_extension("html"));
-                println!("{:?}", f);
                 response = Response::from_file("text/html", f.unwrap());
             }
             if response.is_success() {
@@ -97,3 +99,5 @@ fn dev(args: Vec<String>) -> () {
         Response::html("404 error").with_status_code(404)
     });
 }
+
+// <script type="text/javascript" src="https://livejs.com/live.js"></script>

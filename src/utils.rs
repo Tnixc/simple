@@ -28,7 +28,7 @@ pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandl
 
     let contents = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
 
-    return page(src, contents);
+    return page(src, contents, false);
 }
 
 pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError> {
@@ -68,10 +68,10 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
         contents.push_str(&this);
     }
 
-    return page(src, contents.into_bytes());
+    return page(src, contents.into_bytes(), false);
 }
 
-fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, PageHandleError> {
+fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandleError> {
     let mut string = rewrite_error(String::from_utf8(contents), File, Io, src)?;
 
     let re_component =
@@ -108,6 +108,13 @@ fn page(src: &PathBuf, contents: Vec<u8>) -> Result<String, PageHandleError> {
         );
         println!("Using: {:?}", found.as_str())
     }
+
+    if dev {
+        string = string.replace(
+            "<head>",
+            "<head><script type='text/javascript' src='https://livejs.com/live.js'></script>",
+        );
+    }
     return Ok(string);
 }
 
@@ -116,15 +123,16 @@ pub fn process_pages(
     src: &PathBuf,
     source: PathBuf,
     pages: PathBuf,
+    dev: bool,
 ) -> Result<(), PageHandleError> {
     // dir is the root.
     let entries = rewrite_error(fs::read_dir(pages), File, Io, src)?;
     for entry in entries {
         if entry.as_ref().unwrap().path().is_dir() {
             let this = entry.unwrap().path();
-            process_pages(&dir, &src, source.join(&this), this)?;
+            process_pages(&dir, &src, source.join(&this), this, dev)?;
         } else {
-            let result = page(src, fs::read(entry.as_ref().unwrap().path()).unwrap());
+            let result = page(src, fs::read(entry.as_ref().unwrap().path()).unwrap(), dev);
 
             let path = dir.join("dist").join(
                 entry
