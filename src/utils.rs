@@ -154,7 +154,7 @@ pub fn process_pages(
             );
             rewrite_error(fs::create_dir_all(path.parent().unwrap()), File, Io, src)?;
             let mut f = rewrite_error(std::fs::File::create_new(&path), File, Io, src)?;
-            println!("Writing - {:?}", path);
+            println!("With: {:?}", path);
             rewrite_error(f.write(result?.as_bytes()), File, Io, src)?;
         }
     }
