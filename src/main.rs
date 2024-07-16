@@ -57,17 +57,9 @@ fn build(args: Vec<String>, dev: bool) -> io::Result<()> {
         fs::create_dir(dir.join("dist"))?;
     }
 
-    // for entry in dist.read_dir().unwrap() {
-    //     if entry.as_ref().unwrap().path().is_dir() {
-    //         fs::remove_dir_all(entry.unwrap().path())?;
-    //     } else {
-    //         fs::remove_file(entry.unwrap().path())?
-    //     }
-    // }
-
-    let _ = utils::process_pages(&dir, &src, src.clone(), pages, dev)
+    utils::process_pages(&dir, &src, src.clone(), pages, dev)
         .inspect_err(|f| eprintln!("{f}"))
-        .map_err(|e| std::io::Error::new(io::ErrorKind::Other, format!("{e}")));
+        .map_err(|e| std::io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
 
     utils::copy_into(&public, &dist)
         .inspect_err(|f| println!("Failed to copy files from `public` to `dist`: {f}"))?;
