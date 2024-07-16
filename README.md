@@ -57,8 +57,10 @@ To use a component:
 It searches from /components, so if a component is in a subfolder do this:
 
 ```html
-<Folder/Component />
+<Folder:Component />
 ```
+
+so don't use `:` in your component or folder names.
 
 ### Templates
 
@@ -75,7 +77,7 @@ To use:
 And in templates/Template.html and data/Template.json,
 
 ```html
-<p>{something}</p>
+<p>${something}</p>
 ```
 Will match
 ```json

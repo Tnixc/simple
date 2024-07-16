@@ -2,7 +2,6 @@ use crate::dev::SCRIPT;
 use crate::error::{rewrite_error, ErrorType, PageHandleError, WithItem};
 use fancy_regex::Regex;
 use serde_json::Value;
-use std::fmt::format;
 use std::{
     fs,
     io::{Error, Write},
@@ -12,15 +11,16 @@ use std::{
 use ErrorType::{Io, NotFound, Syntax, Utf8};
 use WithItem::{Component, Data, File, Template};
 
-const COMPONENT_PATTERN_OPEN: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*>(?!.*?-->)"#;
+const COMPONENT_PATTERN_OPEN: &str =
+    r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*>(?!.*?-->)"#;
 
 const COMPONENT_PATTERN_CLOSE: &str =
-    r#"(?<!<!--)<\/([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*>(?!.*?-->)"#;
+    r#"(?<!<!--)<\/([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\s*>(?!.*?-->)"#;
 
-const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*\/>(?!.*?-->)"#;
+const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*\/>(?!.*?-->)"#;
 
 const TEMPLATE_PATTERN: &str =
-    r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
+    r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
 pub fn sub_component_self(
@@ -30,7 +30,7 @@ pub fn sub_component_self(
 ) -> Result<String, PageHandleError> {
     let path = src
         .join("components")
-        .join(component)
+        .join(component.replace(":", "/"))
         .with_extension("component.html");
 
     let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
@@ -43,9 +43,13 @@ pub fn sub_component_self(
 pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError> {
     let template_path = src
         .join("templates")
-        .join(name)
+        .join(name.replace(":", "/"))
         .with_extension("template.html");
-    let data_path = src.join("data").join(name).with_extension("data.json");
+
+    let data_path = src
+        .join("data")
+        .join(name.replace(":", "/"))
+        .with_extension("data.json");
 
     let template_content_utf =
         rewrite_error(fs::read(&template_path), Template, NotFound, &template_path)?;
