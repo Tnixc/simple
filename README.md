@@ -2,6 +2,7 @@
 
 - [ ] Version that actually uses [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components). In js/ts probably
 - [x] Commands such as `dev`, `build`, `new`.
+- [ ] Proper escaping from {}, "", etc.
 - [ ] Props and slots
 - [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
 - [x] Make it so it ignores commented out lines.
