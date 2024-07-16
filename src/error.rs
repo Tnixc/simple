@@ -1,4 +1,4 @@
-use std::fmt::{self, format};
+use std::fmt;
 use std::path::PathBuf;
 
 pub enum ErrorType {

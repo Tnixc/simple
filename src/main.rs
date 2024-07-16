@@ -1,3 +1,4 @@
+mod dev;
 mod error;
 mod new;
 mod utils;
@@ -72,11 +73,9 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
 
     match res {
         Ok(s) => {
-            // if s.kind.is_create() {
             println!("");
             println!("{:?}", s);
             build(args.clone(), true).expect("Build failed");
-            // }
         }
         Err(e) => println!("watch error: {:?}", e),
     }
@@ -93,6 +92,7 @@ fn dev(args: Vec<String>) -> () {
     let src = PathBuf::from(&args[2]).join("src");
 
     // let mut watcher = notify::recommended_watcher(|res| dev_watch_handler(res)).unwrap();
+    // Can't use recommended_watcher because it endlessly triggers sometimes. Probably something to do with FSEvents on macOS as that doesn't work too.
     let config = notify::Config::default()
         .with_compare_contents(true)
         .with_poll_interval(Duration::from_millis(200));
