@@ -1,34 +1,27 @@
-use crate::error::rewrite_error;
-use crate::error::ErrorType;
-use crate::error::PageHandleError;
-use crate::error::WithItem;
+use crate::error::{rewrite_error, ErrorType, PageHandleError, WithItem};
 use fancy_regex::Regex;
 use serde_json::Value;
-use std::fs;
-use std::io::Write;
-use std::str;
-use std::{io::Error, path::PathBuf};
-use ErrorType::Io;
-use ErrorType::NotFound;
-use ErrorType::Utf8;
-use WithItem::Component;
-use WithItem::Data;
-use WithItem::File;
-use WithItem::Template;
+use std::{
+    fs,
+    io::{Error, Write},
+    path::PathBuf,
+    str,
+};
+use ErrorType::{Io, NotFound, Syntax, Utf8};
+use WithItem::{Component, Data, File, Template};
 
 const COMPONENT_PATTERN_OPEN: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*>(?!.*?-->)"#;
 
 const COMPONENT_PATTERN_CLOSE: &str =
-    r"(?<!<!--)<\/([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*>(?!.*?-->)";
+    r#"(?<!<!--)<\/([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*>(?!.*?-->)"#;
 
-const COMPONENT_PATTERN_SELF: &str =
-    r"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\s*\/>(?!.*?-->)";
+const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*\/>(?!.*?-->)"#;
 
 const TEMPLATE_PATTERN: &str =
-    r"(?<!<!--)<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)";
+    r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(\/[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
-pub fn sub_component(src: &PathBuf, component: &str) -> Result<String, PageHandleError> {
+pub fn sub_component_self(src: &PathBuf, component: &str) -> Result<String, PageHandleError> {
     let path = src
         .join("components")
         .join(component)
@@ -82,21 +75,44 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
 fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandleError> {
     let mut string = rewrite_error(String::from_utf8(contents), File, Io, src)?;
 
-    let re_component =
-        Regex::new(COMPONENT_PATTERN_OPEN).expect("Regex failed to parse. This shouldn't happen.");
-    for f in re_component.find_iter(&string.clone()) {
+    let re_component_self =
+        Regex::new(COMPONENT_PATTERN_SELF).expect("Regex failed to parse. This shouldn't happen.");
+    for f in re_component_self.find_iter(&string.clone()) {
         if f.is_ok() {
             let found = f.unwrap();
             let trim = found
                 .as_str()
                 .trim()
                 .trim_start_matches("<")
-                .trim_end_matches(">")
+                .trim_end_matches("/>")
                 .trim();
-            string = string.replace(
-                found.as_str(),
-                &sub_component(src, trim.split_once(" ").map(|(f, _)| f).unwrap_or(trim))?,
-            );
+            let name = trim.split_whitespace().next().unwrap_or(trim);
+            let props: Vec<&str> = trim.split_whitespace().skip(1).collect();
+            let mut targets: Vec<(&str, &str)> = Vec::new();
+
+            for item in props {
+                match item.split_once("=") {
+                    Some((k, mut v)) => {
+                        if v.starts_with("'") {
+                            v = v.trim_start_matches("'").trim_end_matches("'");
+                        } else if v.starts_with("\"") {
+                            v = v.trim_start_matches("\"").trim_end_matches("\"");
+                        }
+                        targets.push((k, v))
+                    }
+                    None => {
+                        eprintln!("Equals not found when parsing props.");
+                        return Err(PageHandleError {
+                            error_type: Syntax,
+                            item: Component,
+                            path: PathBuf::from(name),
+                        });
+                    }
+                }
+            }
+            println!("{:?}", targets);
+
+            string = string.replace(found.as_str(), &sub_component_self(src, name)?);
             println!("Using: {:?}", found.as_str())
         }
     }

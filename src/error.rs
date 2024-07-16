@@ -1,10 +1,11 @@
-use std::fmt;
+use std::fmt::{self, format};
 use std::path::PathBuf;
 
 pub enum ErrorType {
     NotFound,
     Io,
     Utf8,
+    Syntax,
 }
 
 pub enum WithItem {
@@ -44,6 +45,7 @@ impl fmt::Display for PageHandleError {
             ErrorType::NotFound => format!("The {item} on path {path} couldn't be found."),
             ErrorType::Io => format!("The {item} on path {path} encountered an IO error."),
             ErrorType::Utf8 => format!("The {item}: {path} encountered an UTF8 error."),
+            ErrorType::Syntax => format!("Syntax Error! {item} on {path}."),
         };
         write!(f, "Error: {}", err_msg)
     }
