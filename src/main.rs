@@ -8,6 +8,7 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
+use std::time::Duration;
 
 fn main() -> Result<(), &'static str> {
     let args: Vec<String> = env::args().collect();
@@ -56,19 +57,21 @@ fn build(args: Vec<String>, dev: bool) -> io::Result<()> {
         fs::create_dir(dir.join("dist"))?;
     }
 
-    for entry in dist.read_dir().unwrap() {
-        if entry.as_ref().unwrap().path().is_dir() {
-            fs::remove_dir_all(entry.unwrap().path())?;
-        } else {
-            fs::remove_file(entry.unwrap().path())?
-        }
-    }
+    // for entry in dist.read_dir().unwrap() {
+    //     if entry.as_ref().unwrap().path().is_dir() {
+    //         fs::remove_dir_all(entry.unwrap().path())?;
+    //     } else {
+    //         fs::remove_file(entry.unwrap().path())?
+    //     }
+    // }
+
+    let _ = utils::process_pages(&dir, &src, src.clone(), pages, dev)
+        .inspect_err(|f| eprintln!("{f}"))
+        .map_err(|e| std::io::Error::new(io::ErrorKind::Other, format!("{e}")));
 
     utils::copy_into(&public, &dist)
         .inspect_err(|f| println!("Failed to copy files from `public` to `dist`: {f}"))?;
 
-    let _ =
-        utils::process_pages(&dir, &src, src.clone(), pages, dev).inspect_err(|f| eprintln!("{f}"));
     Ok(())
 }
 
@@ -76,8 +79,12 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
     let args: Vec<String> = env::args().collect();
 
     match res {
-        Ok(_) => {
+        Ok(s) => {
+            // if s.kind.is_create() {
+            println!("");
+            println!("{:?}", s);
             build(args.clone(), true).expect("Build failed");
+            // }
         }
         Err(e) => println!("watch error: {:?}", e),
     }
@@ -93,7 +100,11 @@ fn dev(args: Vec<String>) -> () {
     let dist = PathBuf::from(&args[2]).join("dist");
     let src = PathBuf::from(&args[2]).join("src");
 
-    let mut watcher = notify::recommended_watcher(|res| dev_watch_handler(res)).unwrap();
+    // let mut watcher = notify::recommended_watcher(|res| dev_watch_handler(res)).unwrap();
+    let config = notify::Config::default()
+        .with_compare_contents(true)
+        .with_poll_interval(Duration::from_millis(200));
+    let mut watcher = notify::PollWatcher::new(|res| dev_watch_handler(res), config).unwrap();
 
     watcher
         .watch(&src, RecursiveMode::Recursive)
@@ -104,7 +115,9 @@ fn dev(args: Vec<String>) -> () {
             let mut response = rouille::match_assets(request, dist.to_str().unwrap());
             if request.url() == "/" {
                 let f = fs::File::open(&dist.join("index").with_extension("html"));
-                response = Response::from_file("text/html", f.unwrap());
+                if f.is_ok() {
+                    response = Response::from_file("text/html", f.unwrap());
+                }
             }
             if response.is_success() {
                 return response;
