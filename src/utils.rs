@@ -14,9 +14,6 @@ use WithItem::{Component, Data, File, Template};
 const COMPONENT_PATTERN_OPEN: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*>(?!.*?-->)"#;
 
-const COMPONENT_PATTERN_CLOSE: &str =
-    r#"(?<!<!--)<\/([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\s*>(?!.*?-->)"#;
-
 const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*\/>(?!.*?-->)"#;
 
 const TEMPLATE_PATTERN: &str =
@@ -38,6 +35,25 @@ pub fn sub_component_self(
     st = kv_replace(targets, st);
     let contents = st.into_bytes();
     return page(src, contents, false);
+}
+
+pub fn sub_component_slot(
+    src: &PathBuf,
+    component: &str,
+    targets: Vec<(&str, &str)>,
+    slot_content: String,
+) -> Result<String, PageHandleError> {
+    let path = src
+        .join("components")
+        .join(component.replace(":", "/"))
+        .with_extension("component.html");
+    let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
+    let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
+    st = kv_replace(targets, st);
+    if !slot_content.is_empty() {
+        st = st.replace("</slot>", &(slot_content + "</slot>"));
+    }
+    return page(src, st.into_bytes(), false);
 }
 
 pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError> {
@@ -110,6 +126,38 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
 
     let re_component_open =
         Regex::new(COMPONENT_PATTERN_OPEN).expect("Regex failed to parse. This shouldn't happen.");
+
+    for f in re_component_open.find_iter(&string.to_owned()) {
+        if f.is_ok() {
+            let found = f.unwrap();
+            let trim = found
+                .as_str()
+                .trim()
+                .trim_start_matches("<")
+                .trim_end_matches(">")
+                .trim();
+            let name = trim.split_whitespace().next().unwrap_or(trim);
+            let end = format!("</{}>", &name);
+
+            let props: Vec<&str> = trim.split_whitespace().skip(1).collect();
+            let targets = targets_kv(name, props)?;
+            let slot_content = get_inside(&string, found.as_str(), &end);
+            if slot_content.is_none() {
+                return Err(PageHandleError {
+                    error_type: Syntax,
+                    item: Component,
+                    path: PathBuf::from(&name),
+                });
+            } else {
+                string = string.replace(
+                    found.as_str(),
+                    &sub_component_slot(src, name, targets, slot_content.unwrap())?,
+                );
+            }
+            string = string.replace(&end, "");
+            println!("Using: {:?}", found.as_str());
+        }
+    }
 
     let re_template =
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
@@ -231,4 +279,16 @@ fn kv_replace(kv: Vec<(&str, &str)>, mut from: String) -> String {
         from = from.replace(&key, v);
     }
     return from;
+}
+
+fn get_inside(input: &str, from: &str, to: &str) -> Option<String> {
+    let start_index = input.find(from)?;
+    let start_pos = start_index + from.len();
+    let end_index = input[start_pos..].find(to).map(|i| i + start_pos)?;
+
+    if start_pos >= end_index {
+        Some(String::new())
+    } else {
+        Some(input[start_pos..end_index].to_string())
+    }
 }
