@@ -1,6 +1,6 @@
 # Simple Build tool
 
-<<<<<<< HEAD
+- [ ] <markdown> component 
 - [ ] Version that actually uses [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components). In js/ts probably
 - [x] Commands such as `dev`, `build`, `new`.
 - [ ] Proper escaping from {}, "", etc.
