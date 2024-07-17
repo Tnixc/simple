@@ -1,24 +1,26 @@
 # Simple Build tool
 
-- [ ] Version that actually uses [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components). In js/ts probably
-- [x] Commands such as `dev`, `build`, `new`.
-- [ ] Proper escaping from {}, "", etc.
-- [ ] Props and slots
-- [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
-- [x] Make it so it ignores commented out lines.
-- [ ] Check for circular deps
-- [ ] Implement MD rendering (external lib)
-- [ ] Look into testing
-- [ ] Give warnings for unused and not found components
-- [x] Watcher or HMR (HMR is too complex so probably not) -> Watcher is done but it's not very good.
-- [x] Live reloading with livejs.
-- [ ] CSS scoping in components but waiting for [@scope general support](https://developer.mozilla.org/en-US/docs/Web/CSS/@scope) just use tw for now
-- [ ] Type safety-ish warnings when template doesn't match data
-- [x] Speed tests.
-- [ ] Cache what has changed with hashing so no need to rebuild if stuff is same. -> can massively speed it up if lots of templating.
-- [x] Get templates working
-- [x] Get components working
-- [x] Copy files from /public to /dist
+-   [ ] colorful, actually good logs.
+-   [x] Commands such as `dev`, `build`, `new`.
+-   [x] Proper escaping from {}, "", etc. -> you dont actually need this now that we're using `${}` syntax
+-   [ ] Props and slots
+-   [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
+-   [x] Make it so it ignores commented out lines.
+-   [ ] Check for circular deps
+-   [ ] Implement MD rendering (external lib)
+-   [ ] Look into testing
+-   [ ] Give warnings for unused and not found components
+-   [x] Watcher or HMR (HMR is too complex so probably not) -> Watcher is done but it's not very good.
+-   [x] Live reloading with livejs.
+-   [ ] CSS scoping in components but waiting for [@scope general support](https://developer.mozilla.org/en-US/docs/Web/CSS/@scope) just use tw for now
+-   [ ] Type safety-ish warnings when template doesn't match data -> can do with after pass for ${} syntax in results.
+-   [x] Speed tests.
+-   [ ] Cache what has changed with hashing so no need to rebuild if stuff is same. -> can massively speed it up if lots of templating.
+-   [x] Get templates working
+-   [x] Get components working
+-   [x] Copy files from /public to /dist
+
+-   [ ] Version that actually uses [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components). In js/ts probably
 
 # Docs
 
@@ -44,6 +46,7 @@ The file tree should look something like this:
    └── templates
       └── Something.html
 ```
+
 ### Components
 
 Components, and folders in /components must be in `PascalCase`. The first letter must be capitalized.
@@ -79,12 +82,11 @@ And in templates/Template.html and data/Template.json,
 ```html
 <p>${something}</p>
 ```
+
 Will match
+
 ```json
-[
-  { "something" : "a"},
-  { "something" : "b"},
-]
+[{ "something": "a" }, { "something": "b" }]
 ```
 
 You can use components in templates and vice versa. It recursively resolves each one so if a lot of places use a component it could become inefficient because it reads from disk every time. It also doesn't halt on circular dependencies.

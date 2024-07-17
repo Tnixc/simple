@@ -108,6 +108,9 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
         }
     }
 
+    let re_component_open =
+        Regex::new(COMPONENT_PATTERN_OPEN).expect("Regex failed to parse. This shouldn't happen.");
+
     let re_template =
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
     for f in re_template.find_iter(&string.clone()) {
