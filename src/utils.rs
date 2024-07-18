@@ -133,7 +133,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                 .trim();
             let name = trim.split_whitespace().next().unwrap_or(trim);
             let targets = targets_kv(name, found.as_str())?;
-            string = string.replace(found.as_str(), &sub_component_self(src, name, targets)?);
+            string = string.replacen(found.as_str(), &sub_component_self(src, name, targets)?, 1);
             println!("Using: {:?}", found.as_str())
         }
     }
@@ -157,19 +157,20 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
             let slot_content = get_inside(&string, found.as_str(), &end);
             if slot_content.is_some() {
                 let from = found.as_str().to_owned() + &(slot_content.as_ref().unwrap().clone());
-                println!("from: {:?}", from);
-                string = string.replace(
+                string = string.replacen(
                     &from,
                     &sub_component_slot(src, name, targets, slot_content)?,
+                    1,
                 );
             } else {
-                string = string.replace(
+                string = string.replacen(
                     &found.as_str().to_owned(),
                     &sub_component_slot(src, name, targets, slot_content)?,
+                    1,
                 )
             }
 
-            string = string.replace(&end, "");
+            string = string.replacen(&end, "", 1);
             println!("Using: {:?}", found.as_str());
         }
     }
@@ -179,7 +180,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
     for f in re_template.find_iter(&string.clone()) {
         if f.is_ok() {
             let found = f.unwrap();
-            string = string.replace(
+            string = string.replacen(
                 found.as_str(),
                 &sub_template(
                     src,
@@ -191,6 +192,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                         .trim()
                         .trim_end_matches("}"),
                 )?,
+                1,
             );
             println!("Using: {:?}", found.as_str())
         }

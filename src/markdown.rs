@@ -25,7 +25,7 @@ pub fn markdown_element(mut string: String) -> String {
                 .map(|f| f.trim_start().to_owned() + "\n")
                 .collect::<String>();
             let rendered = &markdown_to_html_with_plugins(&res, &Options::default(), &plugins);
-            string = string.replace(found, rendered);
+            string = string.replacen(found, rendered, 1);
         }
     }
     return string;
