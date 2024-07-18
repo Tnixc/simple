@@ -1,6 +1,7 @@
 # Simple Build tool
 
 - [x] `<markdown>` component
+- [ ] Keep some elements loaded to avoid reading from disk every time.
 - [ ] Actually good logs with color, status, etc.
 - [x] Commands such as `dev`, `build`, `new`.
 - [ ] Proper escaping from {}, "", etc.

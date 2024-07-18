@@ -36,7 +36,7 @@ pub fn sub_component_self(
     let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
     st = kv_replace(targets, st);
-    let contents = st.into_bytes();
+    let contents = st.clone().into_bytes();
     return page(src, contents, false);
 }
 
@@ -44,7 +44,7 @@ pub fn sub_component_slot(
     src: &PathBuf,
     component: &str,
     targets: Vec<(&str, &str)>,
-    slot_content: String,
+    slot_content: Option<String>,
 ) -> Result<String, PageHandleError> {
     let path = src
         .join("components")
@@ -52,9 +52,16 @@ pub fn sub_component_slot(
         .with_extension("component.html");
     let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
+    if !st.contains("<slot>") || !st.contains("</slot>") {
+        return Err(PageHandleError {
+            error_type: Syntax,
+            item: Component,
+            path: PathBuf::from(component),
+        });
+    }
     st = kv_replace(targets, st);
-    if !slot_content.is_empty() {
-        st = st.replace("</slot>", &(slot_content + "</slot>"));
+    if slot_content.is_some() {
+        st = st.replace("</slot>", &(slot_content.unwrap() + "</slot>"));
     }
     return page(src, st.into_bytes(), false);
 }
@@ -142,20 +149,20 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
 
             let targets = targets_kv(name, found.as_str())?;
             let slot_content = get_inside(&string, found.as_str(), &end);
-            if slot_content.is_none() {
-                return Err(PageHandleError {
-                    error_type: Syntax,
-                    item: Component,
-                    path: PathBuf::from(&name),
-                });
-            } else {
-                let from = &(found.as_str().to_owned() + &(slot_content.as_ref().unwrap().clone()));
+            if slot_content.is_some() {
+                let from = found.as_str().to_owned() + &(slot_content.as_ref().unwrap().clone());
+                println!("from: {:?}", from);
                 string = string.replace(
-                    from,
-                    &sub_component_slot(src, name, targets, slot_content.unwrap())?,
+                    &from,
+                    &sub_component_slot(src, name, targets, slot_content)?,
                 );
+            } else {
+                string = string.replace(
+                    &found.as_str().to_owned(),
+                    &sub_component_slot(src, name, targets, slot_content)?,
+                )
             }
-            println!("{}", end);
+
             string = string.replace(&end, "");
             println!("Using: {:?}", found.as_str());
         }
@@ -301,7 +308,7 @@ fn get_inside(input: &str, from: &str, to: &str) -> Option<String> {
     let end_index = input[start_pos..].find(to).map(|i| i + start_pos)?;
 
     if start_pos >= end_index {
-        Some(String::new())
+        None
     } else {
         Some(input[start_pos..end_index].to_string())
     }
