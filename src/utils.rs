@@ -22,7 +22,7 @@ const TEMPLATE_PATTERN: &str =
 
 const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
 
-const CLASS_PATTERN: &str = r#"(\w+)=["']([^"']*?)["']"#;
+const CLASS_PATTERN: &str = r#"(\w+)=(['"])(?:(?!\2).)*\2"#;
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
 pub fn sub_component_self(
