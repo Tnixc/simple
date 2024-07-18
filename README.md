@@ -1,7 +1,7 @@
 # Simple Build tool
 
-- [ ] `<markdown>` component
-- [ ] Version that actually uses [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components). In js/ts probably
+- [x] `<markdown>` component
+- [ ] Actually good logs with color, status, etc.
 - [x] Commands such as `dev`, `build`, `new`.
 - [ ] Proper escaping from {}, "", etc.
 - [x] Props and slots
@@ -21,6 +21,8 @@
 - [x] Get templates working
 - [x] Get components working
 - [x] Copy files from /public to /dist
+
+will make version that actually uses [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components). In js/ts probably
 
 # Docs
 

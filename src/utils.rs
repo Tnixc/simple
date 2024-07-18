@@ -1,5 +1,6 @@
 use crate::dev::SCRIPT;
 use crate::error::{rewrite_error, ErrorType, PageHandleError, WithItem};
+use crate::markdown::markdown_element;
 use fancy_regex::Regex;
 use serde_json::Value;
 use std::{
@@ -184,6 +185,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
     if dev {
         string = string.replace("<head>", ("<head>".to_owned() + SCRIPT).as_str());
     }
+    string = markdown_element(string);
     return Ok(string);
 }
 
