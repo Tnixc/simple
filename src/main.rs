@@ -3,7 +3,6 @@ mod error;
 mod markdown;
 mod new;
 mod utils;
-use markdown::markdown_element;
 use notify::{RecursiveMode, Watcher};
 use rouille::Response;
 use std::borrow::Cow;
@@ -14,7 +13,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 fn main() -> Result<(), &'static str> {
-    println!("{}",markdown_element("<markdown># Hello world</markdown>".to_string()));
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
