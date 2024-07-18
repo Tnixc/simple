@@ -6,7 +6,7 @@ use fancy_regex::Regex;
 
 const MARKDOWN_ELEMENT_PATTERN: &str = r#"(?<!<!--)<markdown>([\s\S]+?)<\/markdown>(?!-->)"#;
 pub fn markdown_element(mut string: String) -> String {
-    let codefence_syntax_highlighter = SyntectAdapterBuilder::new().theme("base16-ocean.dark");
+    let codefence_syntax_highlighter = SyntectAdapterBuilder::new();
     let mut plugins = Plugins::default();
     let built = &codefence_syntax_highlighter.build();
     plugins.render.codefence_syntax_highlighter = Some(built);
@@ -17,12 +17,15 @@ pub fn markdown_element(mut string: String) -> String {
     for f in re_markdown.find_iter(&string.to_owned()) {
         if f.is_ok() {
             let found = f.unwrap().as_str();
+            let amount = found
+                .trim_start_matches("<markdown>")
+                .lines()
+                .skip(1)
+                .next();
             let res = found
                 .trim_start_matches("<markdown>")
-                .trim_end_matches("</markdown>")
-                .lines()
-                .map(|f| f.trim_start().to_owned() + "\n")
-                .collect::<String>();
+                .trim_end_matches("</markdown>");
+
             let rendered = &markdown_to_html_with_plugins(&res, &Options::default(), &plugins);
             string = string.replacen(found, rendered, 1);
         }
