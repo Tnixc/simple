@@ -78,7 +78,10 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
         Ok(s) => {
             println!("");
             println!("{:?}", s);
-            build(args.clone(), true).expect("Build failed");
+            let res = build(args.clone(), true);
+            if res.is_err() {
+                println!("There was an error with the build: {:?}", res.err())
+            }
         }
         Err(e) => println!("watch error: {:?}", e),
     }
@@ -89,7 +92,10 @@ fn dev(args: Vec<String>) -> () {
     println!("| Now listening on http://localhost:1717 |");
     println!("|----------------------------------------|");
 
-    build(args.clone(), true).expect("build failed");
+    let res = build(args.clone(), true);
+    if res.is_err() {
+        println!("There was an error with the build: {:?}", res.err())
+    }
 
     let dist = PathBuf::from(&args[2]).join("dist");
     let src = PathBuf::from(&args[2]).join("src");
