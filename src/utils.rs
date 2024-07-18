@@ -150,11 +150,13 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                     path: PathBuf::from(&name),
                 });
             } else {
+                let from = &(found.as_str().to_owned() + &(slot_content.as_ref().unwrap().clone()));
                 string = string.replace(
-                    found.as_str(),
+                    from,
                     &sub_component_slot(src, name, targets, slot_content.unwrap())?,
                 );
             }
+            println!("{}", end);
             string = string.replace(&end, "");
             println!("Using: {:?}", found.as_str());
         }
