@@ -17,6 +17,7 @@ pub fn markdown_element(mut string: String) -> String {
     options.extension.autolink = true;
     options.extension.table = true;
     options.extension.tasklist = true;
+    options.render.unsafe_ = true;
 
     let built = &codefence_syntax_highlighter.build();
     plugins.render.codefence_syntax_highlighter = Some(built);
