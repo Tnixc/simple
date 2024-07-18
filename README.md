@@ -8,7 +8,7 @@
 - [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
 - [x] Make it so it ignores commented out lines.
 - [ ] Check for circular deps
-- [ ] Implement MD rendering (external lib)
+- [ ] Implement MD rendering (external lib) from .md files. Not needed tho maybe?
 - [ ] Look into testing
 - [ ] OG Image and meta generation, especially for markdown posts
 - [ ] Give warnings for unused and not found components
