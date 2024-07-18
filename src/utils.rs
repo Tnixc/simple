@@ -201,8 +201,9 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
     if dev {
         string = string.replace("<head>", ("<head>".to_owned() + SCRIPT).as_str());
     }
-
-    string = markdown_element(string);
+    if string.contains("</markdown>") {
+        string = markdown_element(string);
+    }
     return Ok(string);
 }
 
