@@ -19,6 +19,8 @@ const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z
 
 const TEMPLATE_PATTERN: &str =
     r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
+
+const CLASS_PATTERN: &str = r#"(\w+)=["']([^"']*?)["']"#;
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
 pub fn sub_component_self(
@@ -117,9 +119,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                 .trim_end_matches("/>")
                 .trim();
             let name = trim.split_whitespace().next().unwrap_or(trim);
-            let props: Vec<&str> = trim.split_whitespace().skip(1).collect();
-
-            let targets = targets_kv(name, props)?;
+            let targets = targets_kv(name, found.as_str())?;
             string = string.replace(found.as_str(), &sub_component_self(src, name, targets)?);
             println!("Using: {:?}", found.as_str())
         }
@@ -140,8 +140,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
             let name = trim.split_whitespace().next().unwrap_or(trim);
             let end = format!("</{}>", &name);
 
-            let props: Vec<&str> = trim.split_whitespace().skip(1).collect();
-            let targets = targets_kv(name, props)?;
+            let targets = targets_kv(name, found.as_str())?;
             let slot_content = get_inside(&string, found.as_str(), &end);
             if slot_content.is_none() {
                 return Err(PageHandleError {
@@ -248,30 +247,40 @@ pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
-fn targets_kv<'a>(
-    name: &str,
-    props: Vec<&'a str>,
-) -> Result<Vec<(&'a str, &'a str)>, PageHandleError> {
+fn targets_kv<'a>(name: &str, found: &'a str) -> Result<Vec<(&'a str, &'a str)>, PageHandleError> {
     let mut targets: Vec<(&str, &str)> = Vec::new();
+    let re = Regex::new(CLASS_PATTERN).unwrap();
+    let str = found
+        .trim_start_matches(&("<".to_owned() + name))
+        .trim_end_matches(">");
 
-    for item in props {
-        match item.split_once("=") {
-            Some((k, mut v)) => {
-                if v.starts_with("'") {
-                    v = v.trim_start_matches("'").trim_end_matches("'");
-                } else if v.starts_with("\"") {
-                    v = v.trim_start_matches("\"").trim_end_matches("\"");
+    for item in re.find_iter(str) {
+        if item.is_ok() {
+            match item.unwrap().as_str().split_once("=") {
+                Some((k, mut v)) => {
+                    if v.starts_with("'") {
+                        v = v.trim_start_matches("'").trim_end_matches("'");
+                    } else if v.starts_with("\"") {
+                        v = v.trim_start_matches("\"").trim_end_matches("\"");
+                    }
+                    targets.push((k, v))
                 }
-                targets.push((k, v))
+                None => {
+                    eprintln!("Equals not found when parsing props.");
+                    return Err(PageHandleError {
+                        error_type: Syntax,
+                        item: Component,
+                        path: PathBuf::from(name),
+                    });
+                }
             }
-            None => {
-                eprintln!("Equals not found when parsing props.");
-                return Err(PageHandleError {
-                    error_type: Syntax,
-                    item: Component,
-                    path: PathBuf::from(name),
-                });
-            }
+        } else {
+            eprintln!("Equals not found when parsing props.");
+            return Err(PageHandleError {
+                error_type: Syntax,
+                item: Component,
+                path: PathBuf::from(name),
+            });
         }
     }
     return Ok(targets);
