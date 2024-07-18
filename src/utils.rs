@@ -13,9 +13,9 @@ use ErrorType::{Io, NotFound, Syntax, Utf8};
 use WithItem::{Component, Data, File, Template};
 
 const COMPONENT_PATTERN_OPEN: &str =
-    r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*>(?!.*?-->)"#;
+    r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*>(?!.*?-->)"#;
 
-const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(["'])[^"']*\4)*\s*\/>(?!.*?-->)"#;
+const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
 
 const TEMPLATE_PATTERN: &str =
     r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
@@ -119,6 +119,9 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
 fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandleError> {
     let mut string = rewrite_error(String::from_utf8(contents), File, Io, src)?;
 
+    if string.contains("</markdown>") {
+        string = markdown_element(string);
+    }
     let re_component_self =
         Regex::new(COMPONENT_PATTERN_SELF).expect("Regex failed to parse. This shouldn't happen.");
 
@@ -200,9 +203,6 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
 
     if dev {
         string = string.replace("<head>", ("<head>".to_owned() + SCRIPT).as_str());
-    }
-    if string.contains("</markdown>") {
-        string = markdown_element(string);
     }
     return Ok(string);
 }
