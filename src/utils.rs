@@ -20,6 +20,8 @@ const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z
 const TEMPLATE_PATTERN: &str =
     r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
 
+const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
+
 const CLASS_PATTERN: &str = r#"(\w+)=["']([^"']*?)["']"#;
 // Thank you ChatGPT, couldn't have done this Regex-ing without you.
 
@@ -52,6 +54,7 @@ pub fn sub_component_slot(
         .with_extension("component.html");
     let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
+
     if !st.contains("<slot>") || !st.contains("</slot>") {
         return Err(PageHandleError {
             error_type: Syntax,
@@ -59,8 +62,11 @@ pub fn sub_component_slot(
             path: PathBuf::from(component),
         });
     }
+
     st = kv_replace(targets, st);
     if slot_content.is_some() {
+        let re = Regex::new(SLOT_PATTERN).expect("Failed to parse regex");
+        st = re.replace(&st, "<slot></slot>").to_string();
         st = st.replace("</slot>", &(slot_content.unwrap() + "</slot>"));
     }
     return page(src, st.into_bytes(), false);
