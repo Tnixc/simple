@@ -1,24 +1,27 @@
 # Simple Build tool
 
-- [x] `<markdown>` component
-- [ ] Keep some elements loaded to avoid reading from disk every time.
+- [ ] Fix bugs (extremely buggy right now).
+- [ ] Fix problem where there are 2 sources of truth for md in the current way I do blog posts, will hopefully be fixed with proper md rendering.
 - [ ] Actually good logs with color, status, etc.
-- [x] Commands such as `dev`, `build`, `new`.
+- [ ] Keep some elements loaded to avoid reading from disk every time.
+- [ ] Switch to using a .config file
 - [ ] Proper escaping from {}, "", etc.
+- [ ] Check for circular deps.
+- [ ] Implement MD rendering (external lib) from .md files. Not needed tho maybe?
+- [ ] Look into testing (tons of edge cases)
+- [ ] OG Image and meta generation, especially for markdown posts
+- [ ] Give warnings for unused and not found components
+- [ ] CSS scoping in components but waiting for @scope general support , so just use tailwind for now
+- [ ] Type safety-ish warnings when template doesn't match data
+- [ ] Cache what has changed with hashing so no need to rebuild if stuff is same. -> can massively speed it up if lots of templating.
+- [ ] Improve flexibility w/ markdown syntax highlighting
+- [ ] Watcher or HMR (HMR is too complex so probably not) -> livejs is not ideal and is quite broken rn.
+- [x] <markdown> component
+- [x] Commands such as dev, build, new.
 - [x] Props and slots
 - [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
 - [x] Make it so it ignores commented out lines.
-- [ ] Check for circular deps
-- [ ] Implement MD rendering (external lib) from .md files. Not needed tho maybe?
-- [ ] Look into testing
-- [ ] OG Image and meta generation, especially for markdown posts
-- [ ] Give warnings for unused and not found components
-- [x] Watcher or HMR (HMR is too complex so probably not) -> Watcher is done but it's not very good.
-- [x] Live reloading with livejs.
-- [ ] CSS scoping in components but waiting for [@scope general support](https://developer.mozilla.org/en-US/docs/Web/CSS/@scope) just use tw for now
-- [ ] Type safety-ish warnings when template doesn't match data
 - [x] Speed tests.
-- [ ] Cache what has changed with hashing so no need to rebuild if stuff is same. -> can massively speed it up if lots of templating.
 - [x] Get templates working
 - [x] Get components working
 - [x] Copy files from /public to /dist
