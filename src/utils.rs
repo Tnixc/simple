@@ -3,12 +3,7 @@ use crate::error::{rewrite_error, ErrorType, PageHandleError, WithItem};
 use crate::markdown::markdown_element;
 use fancy_regex::Regex;
 use serde_json::Value;
-use std::{
-    fs,
-    io::{Error, Write},
-    path::PathBuf,
-    str,
-};
+use std::{fs, io::Write, path::PathBuf, str};
 use ErrorType::{Io, NotFound, Syntax, Utf8};
 use WithItem::{Component, Data, File, Template};
 
@@ -36,7 +31,7 @@ pub fn sub_component_self(
         .join(component.replace(":", "/"))
         .with_extension("component.html");
 
-    let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
+    let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &PathBuf::from(component))?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
     st = kv_replace(targets, st);
     let contents = st.clone().into_bytes();
@@ -53,7 +48,7 @@ pub fn sub_component_slot(
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
-    let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &path)?;
+    let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &PathBuf::from(component))?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
 
     if !st.contains("<slot>") || !st.contains("</slot>") {

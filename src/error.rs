@@ -1,4 +1,5 @@
 use std::fmt;
+use color_print::cformat;
 use std::path::PathBuf;
 
 pub enum ErrorType {
@@ -18,10 +19,10 @@ pub enum WithItem {
 impl fmt::Display for WithItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match self {
-            WithItem::Component => "Component",
+            WithItem::Component => "component",
             WithItem::Template => "Template",
-            WithItem::Data => "Data",
-            WithItem::File => "File",
+            WithItem::Data => "data",
+            WithItem::File => "file or directory",
         };
         write!(f, "{}", msg)
     }
@@ -42,12 +43,12 @@ impl fmt::Display for PageHandleError {
             .to_owned()
             .expect("Couldn't turn PathBuf into string");
         let err_msg = match self.error_type {
-            ErrorType::NotFound => format!("The {item} on path {path} couldn't be found."),
-            ErrorType::Io => format!("The {item} on path {path} encountered an IO error."),
-            ErrorType::Utf8 => format!("The {item}: {path} encountered an UTF8 error."),
-            ErrorType::Syntax => format!("Syntax Error! {item} on {path}."),
+            ErrorType::NotFound => cformat!("The {item} <r>{path}</> couldn't be found."),
+            ErrorType::Io => cformat!("The {item} <r>{path}</> encountered an IO error."),
+            ErrorType::Utf8 => cformat!("The {item} <r>{path}</> encountered an UTF8 error."),
+            ErrorType::Syntax => cformat!("The {item} <r>{path}</> encountered a syntax error."),
         };
-        write!(f, "Error: {}", err_msg)
+        write!(f, "{err_msg}")
     }
 }
 
