@@ -3,6 +3,8 @@ mod error;
 mod markdown;
 mod new;
 mod utils;
+use color_print::cprintln;
+use error::{rewrite_error, ErrorType, PageHandleError, WithItem};
 use notify::{RecursiveMode, Watcher};
 use rouille::Response;
 use std::borrow::Cow;
@@ -11,6 +13,9 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
+use std::time::Instant;
+use ErrorType::{Io, NotFound, Syntax, Utf8};
+use WithItem::{Component, Data, File, Template};
 
 fn main() -> Result<(), &'static str> {
     let args: Vec<String> = env::args().collect();
@@ -43,7 +48,9 @@ fn main() -> Result<(), &'static str> {
     }
 }
 
-fn build(args: Vec<String>, dev: bool) -> io::Result<()> {
+fn build(args: Vec<String>, dev: bool) -> Result<(), PageHandleError> {
+    cprintln!("<c><s>Building</></>...");
+    let start = Instant::now();
     if args.len() < 3 {
         return Ok(());
     }
@@ -56,16 +63,20 @@ fn build(args: Vec<String>, dev: bool) -> io::Result<()> {
     let public = src.join("public");
 
     if !dir.join("dist").exists() {
-        fs::create_dir(dir.join("dist"))?;
+        rewrite_error(
+            fs::create_dir(dir.join("dist")),
+            File,
+            NotFound,
+            &PathBuf::from(dir.join("dist")),
+        )?;
     }
 
-    utils::process_pages(&dir, &src, src.clone(), pages, dev)
-        .inspect_err(|f| eprintln!("{f}"))
-        .map_err(|e| std::io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+    utils::process_pages(&dir, &src, src.clone(), pages, dev)?;
 
-    utils::copy_into(&public, &dist)
-        .inspect_err(|f| println!("Failed to copy files from `public` to `dist`: {f}"))?;
+    utils::copy_into(&public, &dist)?;
+    let duration = Instant::now().duration_since(start).as_millis();
 
+    cprintln!("<g><s>Done</></> in {duration} ms.");
     Ok(())
 }
 
@@ -75,7 +86,7 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
     match res {
         Ok(s) => {
             println!("");
-            println!("{:?}", s);
+            cprintln!("<m><s>Modified: </></>{:?}", s.paths);
             let res = build(args.clone(), true);
             if res.is_err() {
                 println!("There was an error with the build: {:?}", res.err())
@@ -86,9 +97,9 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
 }
 
 fn dev(args: Vec<String>) -> () {
-    println!("|----------------------------------------|");
-    println!("| Now listening on http://localhost:1717 |");
-    println!("|----------------------------------------|");
+    cprintln!("<k!>|----------------------------------------|</>");
+    cprintln!("| <s>Now listening on <y><u>http://localhost:1717</></></> |");
+    cprintln!("<k!>|----------------------------------------|</>");
 
     let res = build(args.clone(), true);
     if res.is_err() {
