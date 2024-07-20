@@ -15,7 +15,8 @@ use WithItem::{Component, Data, File, Template};
 const COMPONENT_PATTERN_OPEN: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*>(?!.*?-->)"#;
 
-const COMPONENT_PATTERN_SELF: &str = r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
+const COMPONENT_PATTERN_SELF: &str =
+    r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
 
 const TEMPLATE_PATTERN: &str =
     r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
@@ -137,7 +138,6 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
             let name = trim.split_whitespace().next().unwrap_or(trim);
             let targets = targets_kv(name, found.as_str())?;
             string = string.replacen(found.as_str(), &sub_component_self(src, name, targets)?, 1);
-            println!("Using: {:?}", found.as_str())
         }
     }
 
@@ -174,7 +174,6 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
             }
 
             string = string.replacen(&end, "", 1);
-            println!("Using: {:?}", found.as_str());
         }
     }
 
@@ -197,7 +196,6 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                 )?,
                 1,
             );
-            println!("Using: {:?}", found.as_str())
         }
     }
 
@@ -236,18 +234,17 @@ pub fn process_pages(
             rewrite_error(fs::create_dir_all(path.parent().unwrap()), File, Io, &path)?;
             let mut f = rewrite_error(std::fs::File::create(&path), File, Io, &path)?;
             rewrite_error(f.write(result?.as_bytes()), File, Io, &path)?;
-            println!("With: {:?}", path);
         }
     }
     Ok(())
 }
 
-pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), Error> {
+pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), PageHandleError> {
     if !dist.exists() {
-        fs::create_dir_all(dist)?;
+        rewrite_error(fs::create_dir_all(dist), File, Io, &PathBuf::from(dist))?;
     }
 
-    let entries = fs::read_dir(public)?;
+    let entries = rewrite_error(fs::read_dir(public), File, Io, &PathBuf::from(public))?;
     for entry in entries {
         let entry = entry.unwrap().path();
         let dest_path = dist.join(entry.strip_prefix(public).unwrap());
@@ -256,9 +253,19 @@ pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), Error> {
             copy_into(&entry, &dest_path)?;
         } else {
             if let Some(parent) = dest_path.parent() {
-                fs::create_dir_all(parent)?;
+                rewrite_error(
+                    fs::create_dir_all(parent),
+                    File,
+                    Io,
+                    &PathBuf::from(&dest_path),
+                )?;
             }
-            fs::copy(&entry, &dest_path)?;
+            rewrite_error(
+                fs::copy(&entry, &dest_path),
+                File,
+                Io,
+                &PathBuf::from(&dest_path),
+            )?;
         }
     }
     Ok(())
