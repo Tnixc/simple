@@ -12,12 +12,3 @@ fancy-regex = "0.13.0"
 notify = "6.1.1"
 rouille = "3.6.2"
 serde_json = "1.0.120"
-
-[profile.release]
-debug = 1
-
-[rust]
-debuginfo-level = 1
-
-[build]
-rustflags = ["-C", "symbol-mangling-version=v0"]

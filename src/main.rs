@@ -10,12 +10,11 @@ use rouille::Response;
 use std::borrow::Cow;
 use std::env;
 use std::fs;
-use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
-use ErrorType::{Io, NotFound, Syntax, Utf8};
-use WithItem::{Component, Data, File, Template};
+use ErrorType::NotFound;
+use WithItem::File;
 
 fn main() -> () {
     let args: Vec<String> = env::args().collect();
@@ -35,19 +34,16 @@ fn main() -> () {
         }
         "build" => {
             let _ = build(args, false).map_err(|e| {
-                eprintln!(
-                    "{}",
-                    cformat!(
-                        "<s><r>Build error</></>: {e}"
-                    )
-                );
+                eprintln!("{}", cformat!("<s><r>Build error</></>: {e}"));
             });
         }
         "new" => {
-            let v = new::new(args);
+            let _ = new::new(args).map_err(|e| {
+                eprintln!("{}", cformat!("<s><r>Scaffold error</></>: {e}"));
+            });
         }
         _ => {
-            println!("Unknown command");
+            println!("Unknown operation. Operations: build, dev, new");
         }
     }
 }
@@ -91,24 +87,22 @@ fn dev_watch_handler(res: Result<notify::Event, notify::Error>) {
         Ok(s) => {
             println!("");
             cprintln!("<m><s>Modified: </></>{:?}", s.paths);
-            let res = build(args.clone(), true);
-            if res.is_err() {
-                println!("There was an error with the build: {:?}", res.err())
-            }
+            let _ = build(args.clone(), true).map_err(|e| {
+                eprintln!("{}", cformat!("  <k>|</> <s><r>Build error</></>: {e}"));
+            });
         }
-        Err(e) => println!("watch error: {:?}", e),
+        Err(e) => eprintln!("{}", cformat!("  <k>|</> <s><r>Watch error</></>: {:?}", e)),
     }
 }
 
 fn dev(args: Vec<String>) -> () {
-    cprintln!("<k!>|----------------------------------------|</>");
-    cprintln!("| <s>Now listening on <y><u>http://localhost:1717</></></> |");
-    cprintln!("<k!>|----------------------------------------|</>");
+    cprintln!("<k!>|-----------------------------------|</>");
+    cprintln!("| <s>Now serving <y><u>http://localhost:1717</></></> |");
+    cprintln!("<k!>|-----------------------------------|</>");
 
-    let res = build(args.clone(), true);
-    if res.is_err() {
-        println!("There was an error with the build: {:?}", res.err())
-    }
+    let _ = build(args.clone(), true).map_err(|e| {
+        eprintln!("{}", cformat!("  <k>|</> <s><r>Build error</></>: {e}"));
+    });
 
     let dist = PathBuf::from(&args[2]).join("dist");
     let src = PathBuf::from(&args[2]).join("src");
