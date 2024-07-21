@@ -75,7 +75,7 @@ so don't use `:` in your component or folder names.
 
 ### Templates
 
-The templates are stored in /templates, and the data for the corresponding template is in /data.
+The templates are stored in `/templates`, and the data for the corresponding template is in `/data`.
 
 A data file should have the same name as the template file. Keep in mind the template file is the one that's being repeated.
 
@@ -85,7 +85,7 @@ To use:
 <-{Template} />
 ```
 
-And in templates/Template.html and data/Template.json,
+And in `templates/Template.template.html` and `data/Template.data.json`,
 
 ```html
 <p>${something}</p>
