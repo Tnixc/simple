@@ -50,6 +50,12 @@ fn main() -> () {
 
 fn build(args: Vec<String>, dev: bool) -> Result<(), PageHandleError> {
     cprintln!("<c><s>Building</></>...");
+    let s;
+    if dev {
+        s = "dev"
+    } else {
+        s = "dist"
+    }
     let start = Instant::now();
     if args.len() < 3 {
         return Ok(());
@@ -57,17 +63,17 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), PageHandleError> {
     let dir = PathBuf::from(&args[2]);
 
     let src = dir.join("src");
-    let dist = dir.join("dist");
+    let dist = dir.join(s);
 
     let pages = src.join("pages");
     let public = src.join("public");
 
-    if !dir.join("dist").exists() {
+    if !dir.join(s).exists() {
         rewrite_error(
-            fs::create_dir(dir.join("dist")),
+            fs::create_dir(dir.join(s)),
             File,
             NotFound,
-            &PathBuf::from(dir.join("dist")),
+            &PathBuf::from(dir.join(s)),
         )?;
     }
 
@@ -104,7 +110,7 @@ fn dev(args: Vec<String>) -> () {
         eprintln!("{}", cformat!("  <k>|</> <s><r>Build error</></>: {e}"));
     });
 
-    let dist = PathBuf::from(&args[2]).join("dist");
+    let dist = PathBuf::from(&args[2]).join("dev");
     let src = PathBuf::from(&args[2]).join("src");
 
     // let mut watcher = notify::recommended_watcher(|res| dev_watch_handler(res)).unwrap();

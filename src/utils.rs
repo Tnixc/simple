@@ -31,7 +31,12 @@ pub fn sub_component_self(
         .join(component.replace(":", "/"))
         .with_extension("component.html");
 
-    let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &PathBuf::from(component))?;
+    let v = rewrite_error(
+        fs::read(path.clone()),
+        Component,
+        NotFound,
+        &PathBuf::from(component),
+    )?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
     st = kv_replace(targets, st);
     let contents = st.clone().into_bytes();
@@ -48,7 +53,12 @@ pub fn sub_component_slot(
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
-    let v = rewrite_error(fs::read(path.clone()), Component, NotFound, &PathBuf::from(component))?;
+    let v = rewrite_error(
+        fs::read(path.clone()),
+        Component,
+        NotFound,
+        &PathBuf::from(component),
+    )?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
@@ -209,14 +219,19 @@ pub fn process_pages(
 ) -> Result<(), PageHandleError> {
     // dir is the root.
     let entries = rewrite_error(fs::read_dir(pages), File, Io, src)?;
+    let s;
+    if dev {
+        s = "dev"
+    } else {
+        s = "dist"
+    }
     for entry in entries {
         if entry.as_ref().unwrap().path().is_dir() {
             let this = entry.unwrap().path();
             process_pages(&dir, &src, source.join(&this), this, dev)?;
         } else {
             let result = page(src, fs::read(entry.as_ref().unwrap().path()).unwrap(), dev);
-
-            let path = dir.join("dist").join(
+            let path = dir.join(s).join(
                 entry
                     .unwrap()
                     .path()
