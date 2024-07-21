@@ -14,7 +14,7 @@ const COMPONENT_PATTERN_SELF: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
 
 const TEMPLATE_PATTERN: &str =
-    r#"(?<!<!--)<-\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
+    r#"(?<!<!--)<-Template\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
 
 const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
 
@@ -194,7 +194,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                     found
                         .as_str()
                         .trim()
-                        .trim_start_matches("<-{")
+                        .trim_start_matches("<-Template{")
                         .trim_end_matches("/>")
                         .trim()
                         .trim_end_matches("}"),
