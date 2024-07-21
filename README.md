@@ -82,7 +82,7 @@ A data file should have the same name as the template file. Keep in mind the tem
 To use:
 
 ```html
-<-{Template} />
+<-Template{Template} />
 ```
 
 And in `templates/Template.template.html` and `data/Template.data.json`,
