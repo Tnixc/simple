@@ -4,7 +4,8 @@ mod markdown;
 mod new;
 mod utils;
 use color_print::{cformat, cprintln};
-use error::{rewrite_error, ErrorType, PageHandleError, WithItem};
+use error::MapPageError;
+use error::{ErrorType, PageHandleError, WithItem};
 use notify::{RecursiveMode, Watcher};
 use rouille::Response;
 use std::borrow::Cow;
@@ -69,12 +70,7 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), PageHandleError> {
     let public = src.join("public");
 
     if !dir.join(s).exists() {
-        rewrite_error(
-            fs::create_dir(dir.join(s)),
-            File,
-            NotFound,
-            &PathBuf::from(dir.join(s)),
-        )?;
+        fs::create_dir(dir.join(s)).map_page_err(File, NotFound, &PathBuf::from(dir.join(s)))?;
     }
 
     utils::process_pages(&dir, &src, src.clone(), pages, dev)?;
