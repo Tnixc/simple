@@ -1,5 +1,5 @@
-use std::fmt;
 use color_print::cformat;
+use std::fmt;
 use std::path::PathBuf;
 
 pub enum ErrorType {
@@ -58,23 +58,26 @@ impl fmt::Debug for PageHandleError {
     }
 }
 
-pub fn rewrite_error<T, E>(
-    result: Result<T, E>,
-    item: WithItem,
-    error_type: ErrorType,
-    path: &PathBuf,
-) -> Result<T, PageHandleError> {
-    if result.is_err() {
-        result.map_err(|_| PageHandleError {
+pub trait MapPageError<T, E> {
+    fn map_page_err(
+        self,
+        item: WithItem,
+        error_type: ErrorType,
+        path: &PathBuf,
+    ) -> Result<T, PageHandleError>;
+}
+
+impl<T, E> MapPageError<T, E> for Result<T, E> {
+    fn map_page_err(
+        self,
+        item: WithItem,
+        error_type: ErrorType,
+        path: &PathBuf,
+    ) -> Result<T, PageHandleError> {
+        self.map_err(|_| PageHandleError {
             error_type,
             item,
-            path: path.to_owned(),
-        })
-    } else {
-        result.map_err(|_| PageHandleError {
-            error_type,
-            item,
-            path: PathBuf::new(), // small saves
+            path: path.clone(),
         })
     }
 }

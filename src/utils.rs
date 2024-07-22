@@ -1,5 +1,6 @@
 use crate::dev::SCRIPT;
-use crate::error::{rewrite_error, ErrorType, PageHandleError, WithItem};
+use crate::error::MapPageError;
+use crate::error::{ErrorType, PageHandleError, WithItem};
 use crate::markdown::markdown_element;
 use fancy_regex::Regex;
 use serde_json::Value;
@@ -31,13 +32,14 @@ pub fn sub_component_self(
         .join(component.replace(":", "/"))
         .with_extension("component.html");
 
-    let v = rewrite_error(
-        fs::read(path.clone()),
-        Component,
-        NotFound,
-        &PathBuf::from(component),
-    )?;
-    let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
+    // let v = rewrite_error(
+    //     fs::read(path.clone()),
+    //     Component,
+    //     NotFound,
+    //     &PathBuf::from(component),
+    // )?;
+    let v = fs::read(&path).map_page_err(Component, NotFound, &path)?;
+    let mut st = String::from_utf8(v).map_page_err(Component, Utf8, &path)?;
     st = kv_replace(targets, st);
     let contents = st.clone().into_bytes();
     return page(src, contents, false);
@@ -53,12 +55,7 @@ pub fn sub_component_slot(
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
-    let v = rewrite_error(
-        fs::read(path.clone()),
-        Component,
-        NotFound,
-        &PathBuf::from(component),
-    )?;
+    let v = fs::read(&path).map_page_err(Component, NotFound, &path)?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
@@ -90,16 +87,11 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
         .with_extension("data.json");
 
     let template_content_utf =
-        rewrite_error(fs::read(&template_path), Template, NotFound, &template_path)?;
+        fs::read(&template_path).map_page_err(Template, NotFound, &template_path)?;
+    let template =
+        String::from_utf8(template_content_utf).map_page_err(Template, Utf8, &template_path)?;
 
-    let template = rewrite_error(
-        String::from_utf8(template_content_utf),
-        Template,
-        Utf8,
-        &template_path,
-    )?;
-
-    let data_content_utf8 = rewrite_error(fs::read(&data_path), Data, NotFound, &data_path)?;
+    let data_content_utf8 = fs::read(&data_path).map_page_err(Data, NotFound, &data_path)?;
     let data_str = str::from_utf8(&data_content_utf8).unwrap();
     let v: Value = serde_json::from_str(data_str).expect("JSON decode error");
     let items = v.as_array().expect("JSON wasn't an array");
@@ -123,7 +115,7 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
 }
 
 fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandleError> {
-    let mut string = rewrite_error(String::from_utf8(contents), File, Io, src)?;
+    let mut string = String::from_utf8(contents).map_page_err(File, Io, src)?;
 
     if string.contains("</markdown>") {
         string = markdown_element(string);
@@ -218,7 +210,7 @@ pub fn process_pages(
     dev: bool,
 ) -> Result<(), PageHandleError> {
     // dir is the root.
-    let entries = rewrite_error(fs::read_dir(pages), File, Io, src)?;
+    let entries = fs::read_dir(pages).map_page_err(File, Io, src)?;
     let s;
     if dev {
         s = "dev"
@@ -241,9 +233,9 @@ pub fn process_pages(
                     .unwrap(),
             );
 
-            rewrite_error(fs::create_dir_all(path.parent().unwrap()), File, Io, &path)?;
-            let mut f = rewrite_error(std::fs::File::create(&path), File, Io, &path)?;
-            rewrite_error(f.write(result?.as_bytes()), File, Io, &path)?;
+            fs::create_dir_all(path.parent().unwrap()).map_page_err(File, Io, &path)?;
+            let mut f = std::fs::File::create(&path).map_page_err(File, Io, &path)?;
+            f.write(result?.as_bytes()).map_page_err(File, Io, &path)?;
         }
     }
     Ok(())
@@ -251,10 +243,11 @@ pub fn process_pages(
 
 pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), PageHandleError> {
     if !dist.exists() {
-        rewrite_error(fs::create_dir_all(dist), File, Io, &PathBuf::from(dist))?;
+        fs::create_dir_all(dist).map_page_err(File, Io, &PathBuf::from(dist))?;
     }
 
-    let entries = rewrite_error(fs::read_dir(public), File, Io, &PathBuf::from(public))?;
+    let entries = fs::read_dir(public).map_page_err(File, Io, &PathBuf::from(public))?;
+
     for entry in entries {
         let entry = entry.unwrap().path();
         let dest_path = dist.join(entry.strip_prefix(public).unwrap());
@@ -263,19 +256,9 @@ pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), PageHandleError
             copy_into(&entry, &dest_path)?;
         } else {
             if let Some(parent) = dest_path.parent() {
-                rewrite_error(
-                    fs::create_dir_all(parent),
-                    File,
-                    Io,
-                    &PathBuf::from(&dest_path),
-                )?;
+                fs::create_dir_all(parent).map_page_err(File, Io, &PathBuf::from(&dest_path))?;
             }
-            rewrite_error(
-                fs::copy(&entry, &dest_path),
-                File,
-                Io,
-                &PathBuf::from(&dest_path),
-            )?;
+            fs::copy(&entry, &dest_path).map_page_err(File, Io, &PathBuf::from(&dest_path))?;
         }
     }
     Ok(())
