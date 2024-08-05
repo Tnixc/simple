@@ -51,12 +51,14 @@ fn main() -> () {
 
 fn build(args: Vec<String>, dev: bool) -> Result<(), PageHandleError> {
     cprintln!("<c><s>Building</></>...");
+
     let s;
     if dev {
         s = "dev"
     } else {
         s = "dist"
     }
+
     let start = Instant::now();
     if args.len() < 3 {
         return Ok(());
@@ -140,5 +142,3 @@ fn dev(args: Vec<String>) -> () {
         Response::html("404 error").with_status_code(404)
     });
 }
-
-// <script type="text/javascript" src="https://livejs.com/live.js"></script>

@@ -7,6 +7,7 @@ pub enum ErrorType {
     Io,
     Utf8,
     Syntax,
+    Circular
 }
 
 pub enum WithItem {
@@ -47,6 +48,7 @@ impl fmt::Display for PageHandleError {
             ErrorType::Io => cformat!("The {item} <r>{path}</> encountered an IO error."),
             ErrorType::Utf8 => cformat!("The {item} <r>{path}</> encountered an UTF8 error."),
             ErrorType::Syntax => cformat!("The {item} <r>{path}</> encountered a syntax error."),
+            ErrorType::Circular => cformat!("The {item} <r>{path}</> contains a circular dependency.")
         };
         write!(f, "{err_msg}")
     }
