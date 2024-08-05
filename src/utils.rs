@@ -1,11 +1,12 @@
 use crate::dev::SCRIPT;
+use std::collections::HashSet;
 use crate::error::MapPageError;
 use crate::error::{ErrorType, PageHandleError, WithItem};
 use crate::markdown::markdown_element;
 use fancy_regex::Regex;
 use serde_json::Value;
 use std::{fs, io::Write, path::PathBuf, str};
-use ErrorType::{Io, NotFound, Syntax, Utf8};
+use ErrorType::{Io, NotFound, Syntax, Utf8, Circular};
 use WithItem::{Component, Data, File, Template};
 
 const COMPONENT_PATTERN_OPEN: &str =
@@ -20,29 +21,27 @@ const TEMPLATE_PATTERN: &str =
 const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
 
 const CLASS_PATTERN: &str = r#"(\w+)=(['"])(?:(?!\2).)*\2"#;
-// Thank you ChatGPT, couldn't have done this Regex-ing without you.
+// Thank you Claude, couldn't have done this Regex-ing without you.
 
 pub fn sub_component_self(
     src: &PathBuf,
     component: &str,
     targets: Vec<(&str, &str)>,
+    mut hist: HashSet<PathBuf>,
 ) -> Result<String, PageHandleError> {
     let path = src
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
 
-    // let v = rewrite_error(
-    //     fs::read(path.clone()),
-    //     Component,
-    //     NotFound,
-    //     &PathBuf::from(component),
-    // )?;
     let v = fs::read(&path).map_page_err(Component, NotFound, &path)?;
     let mut st = String::from_utf8(v).map_page_err(Component, Utf8, &path)?;
     st = kv_replace(targets, st);
     let contents = st.clone().into_bytes();
-    return page(src, contents, false);
+    if !hist.insert(path.clone()) {
+        return Err(PageHandleError { error_type: Circular, item: Component, path: PathBuf::from(path) })
+    }
+    return page(src, contents, false, hist);
 }
 
 pub fn sub_component_slot(
@@ -50,6 +49,7 @@ pub fn sub_component_slot(
     component: &str,
     targets: Vec<(&str, &str)>,
     slot_content: Option<String>,
+    mut hist: HashSet<PathBuf>,
 ) -> Result<String, PageHandleError> {
     let path = src
         .join("components")
@@ -72,10 +72,18 @@ pub fn sub_component_slot(
         st = re.replace(&st, "<slot></slot>").to_string();
         st = st.replace("</slot>", &(slot_content.unwrap() + "</slot>"));
     }
-    return page(src, st.into_bytes(), false);
+    if !hist.insert(path.clone()) {
+        return Err(PageHandleError { error_type: Circular, item: Component, path: PathBuf::from(path) })
+    }
+
+    return page(src, st.into_bytes(), false, hist);
 }
 
-pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError> {
+pub fn sub_template(
+    src: &PathBuf,
+    name: &str,
+    mut hist: HashSet<PathBuf>,
+) -> Result<String, PageHandleError> {
     let template_path = src
         .join("templates")
         .join(name.replace(":", "/"))
@@ -110,11 +118,19 @@ pub fn sub_template(src: &PathBuf, name: &str) -> Result<String, PageHandleError
         }
         contents.push_str(&this);
     }
-
-    return page(src, contents.into_bytes(), false);
+    if !hist.insert(template_path.clone()) {
+        return Err(PageHandleError { error_type: Circular, item: Template, path: template_path })
+    }
+    return page(src, contents.into_bytes(), false, hist);
 }
 
-fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandleError> {
+fn page(
+    src: &PathBuf,
+    contents: Vec<u8>,
+    dev: bool,
+    hist: HashSet<PathBuf>,
+) -> Result<String, PageHandleError> {
+
     let mut string = String::from_utf8(contents).map_page_err(File, Io, src)?;
 
     if string.contains("</markdown>") {
@@ -134,7 +150,11 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                 .trim();
             let name = trim.split_whitespace().next().unwrap_or(trim);
             let targets = targets_kv(name, found.as_str())?;
-            string = string.replacen(found.as_str(), &sub_component_self(src, name, targets)?, 1);
+            string = string.replacen(
+                found.as_str(),
+                &sub_component_self(src, name, targets, hist.clone())?,
+                1,
+            );
         }
     }
 
@@ -159,13 +179,13 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                 let from = found.as_str().to_owned() + &(slot_content.as_ref().unwrap().clone());
                 string = string.replacen(
                     &from,
-                    &sub_component_slot(src, name, targets, slot_content)?,
+                    &sub_component_slot(src, name, targets, slot_content, hist.clone())?,
                     1,
                 );
             } else {
                 string = string.replacen(
                     &found.as_str().to_owned(),
-                    &sub_component_slot(src, name, targets, slot_content)?,
+                    &sub_component_slot(src, name, targets, slot_content, hist.clone())?,
                     1,
                 )
             }
@@ -190,6 +210,7 @@ fn page(src: &PathBuf, contents: Vec<u8>, dev: bool) -> Result<String, PageHandl
                         .trim_end_matches("/>")
                         .trim()
                         .trim_end_matches("}"),
+                    hist.clone()
                 )?,
                 1,
             );
@@ -222,7 +243,12 @@ pub fn process_pages(
             let this = entry.unwrap().path();
             process_pages(&dir, &src, source.join(&this), this, dev)?;
         } else {
-            let result = page(src, fs::read(entry.as_ref().unwrap().path()).unwrap(), dev);
+            let result = page(
+                src,
+                fs::read(entry.as_ref().unwrap().path()).unwrap(),
+                dev,
+                HashSet::new(),
+            );
             let path = dir.join(s).join(
                 entry
                     .unwrap()
