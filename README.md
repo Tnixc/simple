@@ -2,12 +2,11 @@
 
 A simple build tool that assembles a static site from components, templates, and data. I used it to build v6 of https://tnixc.space
 
-- [ ] Fix bugs (extremely buggy right now).
-- [ ] Fix problem where there are 2 sources of truth for md in the current way I do blog posts, will hopefully be fixed with proper md rendering.
+- [ ] Fix problem where there are 2 sources of truth for md frontmatter in the current way I do blog posts, will hopefully be fixed with proper md rendering.
 - [ ] Keep some elements loaded to avoid reading from disk every time.
 - [ ] Switch to using a .config file
 - [ ] Proper escaping from {}, "", etc.
-- [ ] Check for circular deps.
+- [x] Check for circular deps.
 - [ ] Implement MD rendering (external lib) from .md files. Not needed tho maybe?
 - [ ] Look into testing (tons of edge cases)
 - [ ] OG Image and meta generation, especially for markdown posts
