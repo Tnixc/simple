@@ -2,6 +2,7 @@
 
 A simple build tool that assembles a static site from components, templates, and data. I used it to build v6 of https://tnixc.space
 
+- [ ] Make async by threadding at fn page level
 - [ ] Fix problem where there are 2 sources of truth for md frontmatter in the current way I do blog posts, will hopefully be fixed with proper md rendering.
 - [ ] Keep some elements loaded to avoid reading from disk every time.
 - [ ] Switch to using a .config file
