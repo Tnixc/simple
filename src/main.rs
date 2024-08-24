@@ -1,9 +1,9 @@
+mod component_handler;
 mod error;
 mod markdown;
 mod new;
 mod page_processor;
 mod template_handler;
-mod component_handler;
 mod utils;
 use color_print::{cformat, cprintln};
 use error::MapPageError;

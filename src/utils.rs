@@ -1,5 +1,5 @@
 use crate::error::ErrorType::Io;
-use crate::error::{MapPageError, ErrorType, PageHandleError, WithItem};
+use crate::error::{ErrorType, MapPageError, PageHandleError, WithItem};
 use fancy_regex::Regex;
 use std::fs;
 use std::path::PathBuf;
@@ -10,6 +10,7 @@ pub fn targets_kv<'a>(
     found: &'a str,
 ) -> Result<Vec<(&'a str, &'a str)>, PageHandleError> {
     let mut targets: Vec<(&str, &str)> = Vec::new();
+    // Regex for key-value pairs in components
     let re = Regex::new(r#"(\w+)=(['"])(?:(?!\2).)*\2"#).unwrap();
     let str = found
         .trim_start_matches(&("<".to_owned() + name))
