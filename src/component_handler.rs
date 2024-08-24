@@ -1,8 +1,9 @@
-use crate::utils::{kv_replace, targets_kv, get_inside};
+use crate::error::{ErrorType, MapPageError, PageHandleError, WithItem};
 use crate::page_processor::page;
-use crate::error::{PageHandleError, ErrorType, WithItem, MapPageError};
-use std::{collections::HashSet, fs, path::PathBuf};
+use crate::utils::{get_inside, kv_replace, targets_kv};
+use color_print::cprintln;
 use fancy_regex::Regex;
+use std::{collections::HashSet, fs, path::PathBuf};
 
 const COMPONENT_PATTERN_SELF: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
@@ -50,7 +51,9 @@ pub fn get_component_slot(
         .with_extension("component.html");
     let v = fs::read(&path).map_page_err(WithItem::Component, ErrorType::NotFound, &path)?;
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
+
     if !st.contains("<slot>") || !st.contains("</slot>") {
+        cprintln!("<r>Component does not contain a slot tag.</r>");
         return Err(PageHandleError {
             error_type: ErrorType::Syntax,
             item: WithItem::Component,
@@ -61,9 +64,10 @@ pub fn get_component_slot(
     st = kv_replace(targets, st);
     if let Some(content) = slot_content {
         let re = Regex::new(SLOT_PATTERN).expect("Failed to parse regex");
-        st = re.replace(&st, "<slot></slot>").to_string();
-        st = st.replace("</slot>", &(content + "</slot>"));
+        // here it replaces "<slot>fallback</slot>" with "<slot></slot>, after the content is exists"
+        st = re.replace(&st, &content).to_string();
     }
+
     if !hist.insert(path.clone()) {
         return Err(PageHandleError {
             error_type: ErrorType::Circular,
@@ -84,16 +88,16 @@ pub fn process_component(
     let pattern = match component_type {
         "self" => COMPONENT_PATTERN_SELF,
         "open" => COMPONENT_PATTERN_OPEN,
-        _ => return Err(PageHandleError {
-            error_type: ErrorType::Syntax,
-            item: WithItem::Component,
-            path: PathBuf::from("unknown"),
-        }),
+        _ => {
+            return Err(PageHandleError {
+                error_type: ErrorType::Syntax,
+                item: WithItem::Component,
+                path: PathBuf::from("unknown"),
+            })
+        }
     };
 
     let re = Regex::new(pattern).expect("Regex failed to parse. This shouldn't happen.");
-
-    let mut replacements = Vec::new();
 
     for f in re.find_iter(&string.to_owned()) {
         if let Ok(found) = f {
@@ -107,23 +111,20 @@ pub fn process_component(
             let name = trim.split_whitespace().next().unwrap_or(trim);
             let targets = targets_kv(name, found.as_str())?;
 
-            let replacement = if component_type == "self" {
-                get_component_self(src, name, targets, hist.clone())?
+            if component_type == "self" {
+                let target = found.as_str();
+                let replacement = get_component_self(src, name, targets, hist.clone())?;
+                *string = string.replacen(target, &replacement, 1);
             } else {
                 let end = format!("</{}>", &name);
                 let slot_content = get_inside(string, found.as_str(), &end);
-                let result = get_component_slot(src, name, targets, slot_content.clone(), hist.clone())?;
-                replacements.push((end.to_string(), String::new()));
-                result
+                let replacement =
+                    get_component_slot(src, name, targets, slot_content.clone(), hist.clone())?;
+                *string = string.replacen(slot_content.unwrap_or("".to_string()).as_str(), "", 1);
+                *string = string.replacen(&end, "", 1);
+                *string = string.replacen(found.as_str(), &replacement, 1);
             };
-
-            replacements.push((found.as_str().to_string(), replacement));
         }
     }
-
-    for (old, new) in replacements.into_iter().rev() {
-        *string = string.replacen(&old, &new, 1);
-    }
-
     Ok(())
 }

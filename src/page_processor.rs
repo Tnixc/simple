@@ -1,7 +1,7 @@
 use crate::component_handler::process_component;
-use crate::template_handler::process_template;
-use crate::error::{PageHandleError, ErrorType, WithItem, MapPageError};
+use crate::error::{ErrorType, MapPageError, PageHandleError, WithItem};
 use crate::markdown::markdown_element;
+use crate::template_handler::process_template;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
 
 const SCRIPT: &str = include_str!("dev.html");
@@ -12,19 +12,21 @@ pub fn page(
     dev: bool,
     hist: HashSet<PathBuf>,
 ) -> Result<String, PageHandleError> {
-    let mut string = String::from_utf8(contents).map_page_err(WithItem::File, ErrorType::Io, src)?;
+    let mut string =
+        String::from_utf8(contents).map_page_err(WithItem::File, ErrorType::Io, src)?;
 
     if string.contains("</markdown>") {
         string = markdown_element(string);
     }
 
-    process_component(src, &mut string, "self", hist.clone())?;
     process_component(src, &mut string, "open", hist.clone())?;
+    process_component(src, &mut string, "self", hist.clone())?;
     process_template(src, &mut string, hist.clone())?;
 
     if dev {
         string = string.replace("<head>", &format!("<head>{}", SCRIPT));
     }
+
     Ok(string)
 }
 
@@ -56,9 +58,21 @@ pub fn process_pages(
                         .unwrap(),
                 );
 
-                fs::create_dir_all(out_path.parent().unwrap()).map_page_err(WithItem::File, ErrorType::Io, &out_path)?;
-                let mut f = std::fs::File::create(&out_path).map_page_err(WithItem::File, ErrorType::Io, &out_path)?;
-                f.write_all(result.as_bytes()).map_page_err(WithItem::File, ErrorType::Io, &out_path)?;
+                fs::create_dir_all(out_path.parent().unwrap()).map_page_err(
+                    WithItem::File,
+                    ErrorType::Io,
+                    &out_path,
+                )?;
+                let mut f = std::fs::File::create(&out_path).map_page_err(
+                    WithItem::File,
+                    ErrorType::Io,
+                    &out_path,
+                )?;
+                f.write_all(result.as_bytes()).map_page_err(
+                    WithItem::File,
+                    ErrorType::Io,
+                    &out_path,
+                )?;
             }
         }
     }
