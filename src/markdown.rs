@@ -5,6 +5,7 @@ use comrak::Plugins;
 use fancy_regex::Regex;
 
 const MARKDOWN_ELEMENT_PATTERN: &str = r#"(?<!<!--)<markdown>([\s\S]+?)<\/markdown>(?!-->)"#;
+
 pub fn markdown_element(mut string: String) -> String {
     let codefence_syntax_highlighter = SyntectAdapterBuilder::new().theme("base16-mocha.dark");
     let mut plugins = Plugins::default();

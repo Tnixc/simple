@@ -1,7 +1,9 @@
-mod dev;
+mod component_handler;
 mod error;
 mod markdown;
 mod new;
+mod page_processor;
+mod template_handler;
 mod utils;
 use color_print::{cformat, cprintln};
 use error::MapPageError;
@@ -75,7 +77,7 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), PageHandleError> {
         fs::create_dir(dir.join(s)).map_page_err(File, NotFound, &PathBuf::from(dir.join(s)))?;
     }
 
-    utils::process_pages(&dir, &src, src.clone(), pages, dev)?;
+    page_processor::process_pages(&dir, &src, src.clone(), pages, dev)?;
 
     utils::copy_into(&public, &dist)?;
     let duration = Instant::now().duration_since(start).as_millis();
