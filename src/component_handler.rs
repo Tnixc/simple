@@ -1,6 +1,6 @@
 use crate::error::{ErrorType, MapPageError, PageHandleError, WithItem};
 use crate::page_processor::page;
-use crate::utils::{get_inside, kv_replace, targets_kv};
+use crate::utils::{get_inside, kv_replace, get_targets_kv};
 use color_print::cprintln;
 use fancy_regex::Regex;
 use std::{collections::HashSet, fs, path::PathBuf};
@@ -109,7 +109,7 @@ pub fn process_component(
                 .trim_end_matches(">")
                 .trim();
             let name = trim.split_whitespace().next().unwrap_or(trim);
-            let targets = targets_kv(name, found.as_str())?;
+            let targets = get_targets_kv(name, found.as_str())?;
 
             if component_type == "self" {
                 let target = found.as_str();

@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use WithItem::File;
 
-pub fn targets_kv<'a>(
+pub fn get_targets_kv<'a>(
     name: &str,
     found: &'a str,
 ) -> Result<Vec<(&'a str, &'a str)>, PageHandleError> {
