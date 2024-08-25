@@ -50,7 +50,7 @@ impl fmt::Display for ProcessError {
             ErrorType::NotFound => cformat!("The {item} <r>{path}</> couldn't be found."),
             ErrorType::Io => cformat!("The {item} <r>{path}</> encountered an IO error."),
             ErrorType::Utf8 => cformat!("The {item} <r>{path}</> encountered an UTF8 error."),
-            ErrorType::Syntax => cformat!("The {item} <r>{path}</> encountered a syntax error."),
+            ErrorType::Syntax => cformat!("Syntax error: {path}."),
             ErrorType::Circular => cformat!("The {item} <r>{path}</> contains a circular dependency."),
             ErrorType::Other => cformat!("Error: <r>{path}</>.")
         };
