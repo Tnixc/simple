@@ -3,6 +3,8 @@
 A simple build tool that assembles a static site from components, templates, and data. I used it to build v6 of https://tnixc.space
 
 - [ ] Fix problem where there are 2 sources of truth for md frontmatter in the current way I do blog posts, will hopefully be fixed with proper md rendering.
+- [ ] Make it so that it fails more strictly on <Template>.
+- [ ] Handle failure to parse json.
 - [ ] Even better error messages that point out the exact line and file.
 - [ ] Keep some elements loaded to avoid reading from disk every time.
 - [ ] Switch to using a .config file

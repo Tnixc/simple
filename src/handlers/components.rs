@@ -1,7 +1,7 @@
 use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use crate::utils::{get_inside, kv_replace, get_targets_kv};
-use color_print::cprintln;
+use color_print::cformat;
 use fancy_regex::Regex;
 use std::{collections::HashSet, fs, path::PathBuf};
 
@@ -53,11 +53,11 @@ pub fn get_component_slot(
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
-        cprintln!("<r>Component does not contain a slot tag.</r>");
+        let msg = cformat!("The component <r>{}</> does not contain a proper slot tag", path.to_str().unwrap());
         return Err(ProcessError {
             error_type: ErrorType::Syntax,
             item: WithItem::Component,
-            path_or_message: PathBuf::from(component),
+            path_or_message: PathBuf::from(msg),
         });
     }
 
