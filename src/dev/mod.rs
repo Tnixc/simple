@@ -42,17 +42,30 @@ fn spawn_websocket_handler(receiver: Receiver<String>) -> () {
     let clients_clone = Arc::clone(&clients);
     thread::spawn(move || loop {
         let message = receiver.recv().unwrap();
-
-        if message == "reload" {
-            let locked_clients = clients_clone.lock().unwrap();
-            for (_, responder) in locked_clients.iter() {
-                let json = serde_json::json!(
-                    {
-                        "action": "reload"
-                    }
-                );
-                let signal = Message::Text(json.to_string());
-                responder.send(signal);
+        let locked_clients = clients_clone.lock().unwrap();
+        match message.as_str() {
+            "reload" => {
+                for (_, responder) in locked_clients.iter() {
+                    let json = serde_json::json!(
+                        {
+                            "message": "reload"
+                        }
+                    );
+                    let signal = Message::Text(json.to_string());
+                    responder.send(signal);
+                }
+            }
+            // error case:
+            _ => {
+                for (_, responder) in locked_clients.iter() {
+                    let json = serde_json::json!(
+                        {
+                            "message": message
+                        }
+                    );
+                    let signal = Message::Text(json.to_string());
+                    responder.send(signal);
+                }
             }
         }
     });
@@ -60,12 +73,10 @@ fn spawn_websocket_handler(receiver: Receiver<String>) -> () {
     loop {
         match event_hub.poll_event() {
             Event::Connect(client_id, responder) => {
-                println!("A client connected with id #{}", client_id);
                 let mut locked_clients = clients.lock().unwrap();
                 locked_clients.insert(client_id, responder);
             }
             Event::Disconnect(client_id) => {
-                println!("Client #{} disconnected.", client_id);
                 let mut locked_clients = clients.lock().unwrap();
                 locked_clients.remove(&client_id);
             }
@@ -107,6 +118,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
                 }
             } else {
                 let e = result.unwrap_err();
+                let _ = sender.send(e.to_string());
                 cprintln!("<s><r>Error</></>: {e}");
             }
         },
