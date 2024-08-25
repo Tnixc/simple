@@ -1,5 +1,5 @@
-use crate::page_processor::page;
-use crate::error::{PageHandleError, ErrorType, WithItem, MapPageError};
+use crate::handlers::pages::page;
+use crate::error::{Error, ErrorType, WithItem, MapPageError};
 use std::{collections::HashSet, fs, path::PathBuf, str};
 use serde_json::Value;
 use fancy_regex::Regex;
@@ -11,7 +11,7 @@ pub fn get_template(
     src: &PathBuf,
     name: &str,
     mut hist: HashSet<PathBuf>,
-) -> Result<String, PageHandleError> {
+) -> Result<String, Error> {
     let template_path = src
         .join("templates")
         .join(name.replace(":", "/"))
@@ -47,10 +47,10 @@ pub fn get_template(
         contents.push_str(&this);
     }
     if !hist.insert(template_path.clone()) {
-        return Err(PageHandleError {
+        return Err(Error {
             error_type: ErrorType::Circular,
             item: WithItem::Template,
-            path: template_path,
+            path_or_message: template_path,
         });
     }
     return page(src, contents.into_bytes(), false, hist);
@@ -60,10 +60,10 @@ pub fn process_template(
     src: &PathBuf,
     string: &mut String,
     hist: HashSet<PathBuf>,
-) -> Result<(), PageHandleError> {
+) -> Result<(), Error> {
     let re_template =
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
-    
+
     let mut replacements = Vec::new();
 
     for f in re_template.find_iter(string) {
@@ -75,7 +75,7 @@ pub fn process_template(
                 .trim_end_matches("/>")
                 .trim()
                 .trim_end_matches("}");
-            
+
             let replacement = get_template(src, template_name, hist.clone())?;
             replacements.push((found.as_str().to_string(), replacement));
         }

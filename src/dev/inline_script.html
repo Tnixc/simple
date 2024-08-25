@@ -1,0 +1,10 @@
+<script>
+const socket = new WebSocket('ws://localhost:2727');
+
+socket.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.action === 'reload') {
+    window.location.reload();
+  }
+};
+</script>

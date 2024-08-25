@@ -1,17 +1,17 @@
-use crate::component_handler::process_component;
-use crate::error::{ErrorType, MapPageError, PageHandleError, WithItem};
-use crate::markdown::markdown_element;
-use crate::template_handler::process_template;
+use crate::error::{Error, ErrorType, MapPageError, WithItem};
+use crate::handlers::components::process_component;
+use crate::handlers::markdown::markdown_element;
+use crate::handlers::templates::process_template;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
 
-const SCRIPT: &str = include_str!("dev.html");
+const SCRIPT: &str = include_str!("../dev/inline_script.html");
 
 pub fn page(
     src: &PathBuf,
     contents: Vec<u8>,
     dev: bool,
     hist: HashSet<PathBuf>,
-) -> Result<String, PageHandleError> {
+) -> Result<String, Error> {
     let mut string =
         String::from_utf8(contents).map_page_err(WithItem::File, ErrorType::Io, src)?;
 
@@ -36,7 +36,7 @@ pub fn process_pages(
     source: PathBuf,
     pages: PathBuf,
     dev: bool,
-) -> Result<(), PageHandleError> {
+) -> Result<(), Error> {
     let entries = fs::read_dir(pages).map_page_err(WithItem::File, ErrorType::Io, src)?;
     let s = if dev { "dev" } else { "dist" };
     for entry in entries {
