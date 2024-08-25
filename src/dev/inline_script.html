@@ -1,73 +1,93 @@
 <script>
-const socket = new WebSocket('ws://localhost:2727');
+  const socket = new WebSocket("ws://localhost:2727");
 
-function convertAnsiToHtml(input) {
+  function convertAnsiToHtml(input) {
     return input
-        .replace(/\x1B\[1m/g, '<strong>')
-        .replace(/\x1B\[31m/g, '<span style="color: #FF5F8C !important;">')
-        .replace(/\x1B\[22m/g, '</strong>')
-        .replace(/\x1B\[39m/g, '</span>')
-        .replace(/\x1B\[0m/g, '</strong></span>');
-}
-
-function place_error(message){
-  let res = `
-    <style>
-    @layer simple_error{
-    #simple_error *{
-      all: revert !important;
-    }
-    #simple_error {
-      all: initial !important;
-      background-color: #25273A !important;
-      font-size: 16px !important;
-      font-family: ui-monospace, Menlo, Monaco, monospace !important;
-      color: #B5C9FF !important;
-      padding-inline: 2rem !important;
-      padding-block: 1rem !important;
-      border-radius: 0.5rem !important;
-      position: fixed !important;
-      top: 4rem !important;
-      right: 0 !important;
-      left: 0 !important;
-      margin: auto !important;
-      width: max-content !important;
-      max-width: 80ch !important;
-      border: 2px solid #3C3E4E !important;
-      box-shadow: rgba(17, 12, 46, 0.15) 0px 48px 100px 0px !important;
-    }
-    }
-    body *:not(#simple_error){
-      opacity: 0.5 !important;
-    }
-    </style>
-    <div id="simple_error">
-      <p style="color: #FF5F8C !important;">
-      Simple build error:
-      </p>
-      <p id="simple_error_message">
-      ${message}
-      </p>
-      <p style="color: #6E738D !important;">
-      Click anywhere to dismiss.
-      </p>
-    </div>
-    `; // TODO: click anywhre to dismiss
-  return res;
-}
-
-socket.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  if (data.message === 'reload'){
-    setTimeout(() => window.location.reload());
-  } else {
-    console.log('something');
-    if (document.getElementById('simple_error_message')){
-      document.getElementById('simple_error_message').innerHTML += convertAnsiToHtml(data.message);
-    } else {
-      document.body.innerHTML += (place_error(convertAnsiToHtml(data.message)));
-    }
-    document.body.addEventListener("click", () => {document.body.innerHTML = old});
+      .replace(/\x1B\[1m/g, "<strong>")
+      .replace(/\x1B\[31m/g, '<span style="color: #FF5F8C !important;">')
+      .replace(/\x1B\[22m/g, "</strong>")
+      .replace(/\x1B\[39m/g, "</span>")
+      .replace(/\x1B\[0m/g, "</strong></span>");
   }
-};
+
+  function createErrorElement(message) {
+    const errorDiv = document.createElement("div");
+    errorDiv.id = "simple_error";
+    errorDiv.innerHTML = `
+        <p style="color: #FF5F8C !important;">Simple build error:</p>
+        <p id="simple_error_message">${message}</p>
+        <p style="color: #6E738D !important;">Click anywhere to dismiss.</p>
+    `;
+    return errorDiv;
+  }
+
+  function addErrorStyles() {
+    if (!document.getElementById("simple_error_styles")) {
+      const style = document.createElement("style");
+      style.id = "simple_error_styles";
+      style.textContent = `
+            @layer simple_error {
+                #simple_error * {
+                    all: revert !important;
+                }
+                #simple_error {
+                    all: initial !important;
+                    background-color: #25273A !important;
+                    font-size: 16px !important;
+                    font-family: ui-monospace, Menlo, Monaco, monospace !important;
+                    color: #B5C9FF !important;
+                    padding-inline: 2rem !important;
+                    padding-block: 1rem !important;
+                    border-radius: 0.5rem !important;
+                    position: fixed !important;
+                    top: 4rem !important;
+                    right: 0 !important;
+                    left: 0 !important;
+                    margin: auto !important;
+                    width: max-content !important;
+                    max-width: 80ch !important;
+                    border: 2px solid #3C3E4E !important;
+                    box-shadow: rgba(17, 12, 46, 0.15) 0px 48px 100px 0px !important;
+                    z-index: 9999 !important;
+                }
+            }
+            body.has-error > *:not(#simple_error):not(script):not(style) {
+                opacity: 0.5 !important;
+                filter: saturate(0) !important;
+            }
+        `;
+      document.head.appendChild(style);
+    }
+  }
+
+  function showError(message) {
+    removeExistingError();
+    addErrorStyles();
+    const errorElement = createErrorElement(convertAnsiToHtml(message));
+    document.body.appendChild(errorElement);
+    document.body.classList.add("has-error");
+
+    document.body.addEventListener("click", removeError);
+  }
+
+  function removeError() {
+    const errorElement = document.getElementById("simple_error");
+    if (errorElement) {
+      errorElement.remove();
+      document.body.classList.remove("has-error");
+    }
+  }
+
+  function removeExistingError() {
+    removeError();
+  }
+
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.message === "reload") {
+      setTimeout(() => window.location.reload(), 100);
+    } else {
+      showError(data.message);
+    }
+  };
 </script>
