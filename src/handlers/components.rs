@@ -1,4 +1,4 @@
-use crate::error::{ErrorType, MapPageError, Error, WithItem};
+use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use crate::utils::{get_inside, kv_replace, get_targets_kv};
 use color_print::cprintln;
@@ -18,7 +18,7 @@ pub fn get_component_self(
     component: &str,
     targets: Vec<(&str, &str)>,
     mut hist: HashSet<PathBuf>,
-) -> Result<String, Error> {
+) -> Result<String, ProcessError> {
     let path = src
         .join("components")
         .join(component.replace(":", "/"))
@@ -29,7 +29,7 @@ pub fn get_component_self(
     st = kv_replace(targets, st);
     let contents = st.clone().into_bytes();
     if !hist.insert(path.clone()) {
-        return Err(Error {
+        return Err(ProcessError {
             error_type: ErrorType::Circular,
             item: WithItem::Component,
             path_or_message: PathBuf::from(path),
@@ -44,7 +44,7 @@ pub fn get_component_slot(
     targets: Vec<(&str, &str)>,
     slot_content: Option<String>,
     mut hist: HashSet<PathBuf>,
-) -> Result<String, Error> {
+) -> Result<String, ProcessError> {
     let path = src
         .join("components")
         .join(component.replace(":", "/"))
@@ -54,7 +54,7 @@ pub fn get_component_slot(
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
         cprintln!("<r>Component does not contain a slot tag.</r>");
-        return Err(Error {
+        return Err(ProcessError {
             error_type: ErrorType::Syntax,
             item: WithItem::Component,
             path_or_message: PathBuf::from(component),
@@ -69,7 +69,7 @@ pub fn get_component_slot(
     }
 
     if !hist.insert(path.clone()) {
-        return Err(Error {
+        return Err(ProcessError {
             error_type: ErrorType::Circular,
             item: WithItem::Component,
             path_or_message: PathBuf::from(path),
@@ -84,12 +84,12 @@ pub fn process_component(
     string: &mut String,
     component_type: &str,
     hist: HashSet<PathBuf>,
-) -> Result<(), Error> {
+) -> Result<(), ProcessError> {
     let pattern = match component_type {
         "self" => COMPONENT_PATTERN_SELF,
         "open" => COMPONENT_PATTERN_OPEN,
         _ => {
-            return Err(Error {
+            return Err(ProcessError {
                 error_type: ErrorType::Syntax,
                 item: WithItem::Component,
                 path_or_message: PathBuf::from("unknown"),

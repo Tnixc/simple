@@ -1,5 +1,5 @@
 use crate::error::ErrorType::Io;
-use crate::error::{ErrorType, MapPageError, Error, WithItem};
+use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
 use fancy_regex::Regex;
 use std::fs;
 use std::path::PathBuf;
@@ -8,7 +8,7 @@ use WithItem::File;
 pub fn get_targets_kv<'a>(
     name: &str,
     found: &'a str,
-) -> Result<Vec<(&'a str, &'a str)>, Error> {
+) -> Result<Vec<(&'a str, &'a str)>, ProcessError> {
     let mut targets: Vec<(&str, &str)> = Vec::new();
     // Regex for key-value pairs in components
     let re = Regex::new(r#"(\w+)=(['"])(?:(?!\2).)*\2"#).unwrap();
@@ -23,14 +23,14 @@ pub fn get_targets_kv<'a>(
                 v = v.trim_matches(|c| c == '\'' || c == '"');
                 targets.push((k, v));
             } else {
-                return Err(Error {
+                return Err(ProcessError {
                     error_type: ErrorType::Syntax,
                     item: WithItem::Component,
                     path_or_message: PathBuf::from(name),
                 });
             }
         } else {
-            return Err(Error {
+            return Err(ProcessError {
                 error_type: ErrorType::Syntax,
                 item: WithItem::Component,
                 path_or_message: PathBuf::from(name),
@@ -60,7 +60,7 @@ pub fn get_inside(input: &str, from: &str, to: &str) -> Option<String> {
     }
 }
 
-pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), Error> {
+pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
     if !dist.exists() {
         fs::create_dir_all(dist).map_page_err(File, Io, &PathBuf::from(dist))?;
     }

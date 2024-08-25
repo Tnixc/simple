@@ -1,4 +1,4 @@
-use crate::error::{Error, ErrorType, MapPageError, WithItem};
+use crate::error::{ProcessError, ErrorType, MapPageError, WithItem};
 use crate::handlers::components::process_component;
 use crate::handlers::markdown::markdown_element;
 use crate::handlers::templates::process_template;
@@ -11,7 +11,7 @@ pub fn page(
     contents: Vec<u8>,
     dev: bool,
     hist: HashSet<PathBuf>,
-) -> Result<String, Error> {
+) -> Result<String, ProcessError> {
     let mut string =
         String::from_utf8(contents).map_page_err(WithItem::File, ErrorType::Io, src)?;
 
@@ -36,7 +36,7 @@ pub fn process_pages(
     source: PathBuf,
     pages: PathBuf,
     dev: bool,
-) -> Result<(), Error> {
+) -> Result<(), ProcessError> {
     let entries = fs::read_dir(pages).map_page_err(WithItem::File, ErrorType::Io, src)?;
     let s = if dev { "dev" } else { "dist" };
     for entry in entries {

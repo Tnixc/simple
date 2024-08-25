@@ -4,7 +4,6 @@ mod handlers {
     pub mod pages;
     pub mod templates;
 }
-
 mod dev;
 mod error;
 mod new;
@@ -13,7 +12,7 @@ mod utils;
 use crate::handlers::pages::process_pages;
 use color_print::{cformat, cprintln};
 use dev::spawn_watcher;
-use error::{Error, ErrorType, MapPageError, WithItem};
+use error::{ProcessError, ErrorType, MapPageError, WithItem};
 use std::{env, fs, path::PathBuf, time::Instant};
 
 fn main() -> () {
@@ -48,7 +47,7 @@ fn main() -> () {
     }
 }
 
-fn build(args: Vec<String>, dev: bool) -> Result<(), Error> {
+fn build(args: Vec<String>, dev: bool) -> Result<(), ProcessError> {
     cprintln!("<c><s>Building</></>...");
 
     let s = if dev { "dev" } else { "dist" };

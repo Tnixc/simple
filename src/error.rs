@@ -32,13 +32,13 @@ impl fmt::Display for WithItem {
     }
 }
 
-pub struct Error {
+pub struct ProcessError {
     pub error_type: ErrorType,
     pub item: WithItem,
     pub path_or_message: PathBuf,
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for ProcessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let item = &self.item;
         let path = &self
@@ -58,7 +58,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl fmt::Debug for Error {
+impl fmt::Debug for ProcessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -70,7 +70,7 @@ pub trait MapPageError<T, E> {
         item: WithItem,
         error_type: ErrorType,
         path: &PathBuf,
-    ) -> Result<T, Error>;
+    ) -> Result<T, ProcessError>;
 }
 
 impl<T, E> MapPageError<T, E> for Result<T, E> {
@@ -79,8 +79,8 @@ impl<T, E> MapPageError<T, E> for Result<T, E> {
         item: WithItem,
         error_type: ErrorType,
         path: &PathBuf,
-    ) -> Result<T, Error> {
-        self.map_err(|_| Error {
+    ) -> Result<T, ProcessError> {
+        self.map_err(|_| ProcessError {
             error_type,
             item,
             path_or_message: path.clone(),

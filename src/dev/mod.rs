@@ -1,4 +1,4 @@
-use crate::error::{Error, ErrorType, WithItem};
+use crate::error::{ErrorType, ProcessError, WithItem};
 use crate::*;
 use color_print::{cformat, cprintln};
 use notify::{RecursiveMode, Watcher};
@@ -13,7 +13,7 @@ use std::thread;
 use std::time::Duration;
 use WithItem::None;
 
-fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Error> {
+fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), ProcessError> {
     let args: Vec<String> = env::args().collect();
     match res {
         Ok(s) => {
@@ -23,7 +23,7 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Error> {
             return result;
         }
         Err(e) => {
-            return Err(Error {
+            return Err(ProcessError {
                 error_type: ErrorType::Other,
                 item: None,
                 path_or_message: PathBuf::from(format!("Watch error: {e}")),
@@ -32,12 +32,27 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Error> {
     }
 }
 
+fn spawn_websocket_handler_old(_receiver: Receiver<String>) -> () {
+    thread::spawn(move || {
+        println!("");
+        cprintln!("<g>websocket for reloading is listening on port 2727</>");
+        rouille::start_server("localhost:2727", move |req| {
+            let (response, websocket) = rouille::try_or_400!(websocket::start(req, Some("echo")));
+            println!("{:?},{:?}", response, websocket);
+            let mut ws = websocket.recv().unwrap();
+            for _ in 0..10 {
+                let r = ws.send_text("String");
+                println!("{:?}", r);
+            }
+            return response;
+        })
+    });
+}
+
 fn spawn_websocket_handler(receiver: Receiver<String>) -> () {
     thread::spawn(move || {
         println!("");
-        loop {
-            let sig = receiver.recv().unwrap_or_default();
-        }
+        println!("WebSocket for reloading is listening on port 2727");
     });
 }
 
@@ -56,11 +71,11 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     // let mut watcher = notify::recommended_watcher(|res| dev_watch_handler(res)).unwrap();
     // Can't use recommended_watcher because it endlessly triggers sometimes. Probably something to do with FSEvents on macOS as that doesn't work too.
 
-    let (sender, receiver) = channel::<String>();
     let config = notify::Config::default()
         .with_compare_contents(true)
         .with_poll_interval(Duration::from_millis(200));
 
+    let (sender, receiver) = channel::<String>();
     spawn_websocket_handler(receiver);
 
     let mut watcher = notify::PollWatcher::new(
