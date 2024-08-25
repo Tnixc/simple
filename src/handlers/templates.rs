@@ -1,5 +1,5 @@
 use crate::handlers::pages::page;
-use crate::error::{Error, ErrorType, WithItem, MapPageError};
+use crate::error::{ProcessError, ErrorType, WithItem, MapPageError};
 use std::{collections::HashSet, fs, path::PathBuf, str};
 use serde_json::Value;
 use fancy_regex::Regex;
@@ -11,7 +11,7 @@ pub fn get_template(
     src: &PathBuf,
     name: &str,
     mut hist: HashSet<PathBuf>,
-) -> Result<String, Error> {
+) -> Result<String, ProcessError> {
     let template_path = src
         .join("templates")
         .join(name.replace(":", "/"))
@@ -47,7 +47,7 @@ pub fn get_template(
         contents.push_str(&this);
     }
     if !hist.insert(template_path.clone()) {
-        return Err(Error {
+        return Err(ProcessError {
             error_type: ErrorType::Circular,
             item: WithItem::Template,
             path_or_message: template_path,
@@ -60,7 +60,7 @@ pub fn process_template(
     src: &PathBuf,
     string: &mut String,
     hist: HashSet<PathBuf>,
-) -> Result<(), Error> {
+) -> Result<(), ProcessError> {
     let re_template =
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
 
