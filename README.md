@@ -84,6 +84,16 @@ If no content inside a slot component is provided, it will use the fallbacks ins
 <Folder:Component />
 ```
 
+### Props
+
+To pass props to a component, use the following syntax:
+
+```html
+<Component prop="value" />
+```
+
+Which will be accessible in the component as `${prop}`.
+
 ## Templating
 
 ```html
