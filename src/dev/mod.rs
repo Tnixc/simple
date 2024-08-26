@@ -89,6 +89,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     cprintln!("<k!>|-----------------------------------|</>");
     cprintln!("| <s>Now serving <y><u>http://localhost:7272</></></> |");
     cprintln!("<k!>|-----------------------------------|</>");
+    cprintln!("<b>The websocket port for reloading is 2727.</>");
 
     let (sender, receiver) = channel::<String>();
     thread::spawn(|| spawn_websocket_handler(receiver));
