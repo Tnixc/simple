@@ -63,8 +63,8 @@ src
 
 To use the above, you would run the following command, where target contains a folder `src`.
 
-```sh
-simple build /path/to/target
+```
+simple <build|dev|new> /path/to/target
 ```
 
 ## Components
