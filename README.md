@@ -4,6 +4,7 @@ A simple build tool that assembles a static site from components, templates, and
 
 - [ ] Fix problem where there are 2 sources of truth for md frontmatter in the current way I do blog posts, will hopefully be fixed with proper md rendering.
 - [ ] Handle port collisions.
+- [ ] Unindent markdown element
 - [ ] Make it so that it fails more strictly on <Template>.
 - [ ] Handle failure to parse json.
 - [ ] Even better error messages that point out the exact line and file.
