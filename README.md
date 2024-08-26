@@ -2,35 +2,56 @@
 
 A simple build tool that assembles a static site from components, templates, and data. I used it to build v6 of https://tnixc.space
 
-- [ ] Fix problem where there are 2 sources of truth for md frontmatter in the current way I do blog posts, will hopefully be fixed with proper md rendering.
-- [ ] Handle port collisions.
-- [ ] Unindent markdown element
-- [ ] Make it so that it fails more strictly on <Template>.
-- [ ] Handle failure to parse json.
-- [ ] Even better error messages that point out the exact line and file.
-- [ ] Keep some elements loaded to avoid reading from disk every time.
-- [ ] Switch to using a .config file
-- [ ] Proper escaping from {}, "", etc. (?)
-- [ ] Implement MD rendering (external lib) from .md files. Not needed tho maybe?
-- [ ] Look into testing (tons of edge cases)
-- [ ] OG Image and meta generation, especially for markdown posts
-- [ ] Give warnings for unused and not found components
-- [ ] CSS scoping in components but waiting for @scope general support , so just use tailwind for now
-- [ ] Type safety-ish warnings when template doesn't match data
-- [ ] Cache what has changed with hashing so no need to rebuild if stuff is same. -> can massively speed it up if lots of templating.
-- [ ] Improve flexibility w/ markdown syntax highlighting theme
-- [x] Check for circular deps.
-- [x] Watcher or HMR (it was not as complicated as I thought, hell yeah)
-- [x] Actually good logs with color, status, etc.
-- [x] <markdown> component
-- [x] Commands such as dev, build, new.
-- [x] Props and slots
-- [x] Make it so it ignores commented out lines.
-- [x] The error handling is abysmal. Mainly due to me using unwrap(), Result type and ? everywhere. - more work to be done but it's in an ok state for now
-- [x] Speed tests.
-- [x] Get templates working
-- [x] Get components working
-- [x] Copy files from /public to /dist
+## Todo List
+
+### Core
+- [ ] Implement proper Markdown rendering from .md files
+- [ ] Switch to using a .config file for configuration
+- [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
+- [ ] Handle port collisions in dev server
+
+### Components and Templates
+- [ ] Improve Template parsing strictness
+- [ ] Implement type safety-ish warnings for template-data mismatches
+- [ ] Add CSS scoping in components (waiting for @scope general support)
+- [ ] Provide warnings for unused and unfound components
+
+### Data
+- [ ] Resolve dual sources of truth for Markdown frontmatter in blog posts (can't fix without proper Markdown parsing into entries)
+- [ ] Improve JSON parsing error handling
+
+### Markdown and Content
+- [ ] Fix Markdown element indentation issues
+- [ ] Enhance flexibility of Markdown syntax highlighting themes
+- [ ] Implement OG Image and meta generation, especially for Markdown posts
+
+### Errors/Logging
+- [ ] Enhance error messages with exact line and file references
+- [ ] Further improve error handling beyond current state
+
+### Perf
+- [ ] Implement selective component caching to reduce disk reads
+- [ ] Conduct and analyze more extensive speed tests
+
+### Syntax/Parsing
+- [ ] Improve escaping for special characters ({}, "", etc.) (needed?)
+
+### Testing
+- [ ] Unit tests and end-to-end tests
+
+### Completed Features
+- [x] Check for circular dependencies
+- [x] Implement file watcher and Hot Module Reloading (HMR)
+- [x] Enhance logging with color, status, etc.
+- [x] Add <markdown> component
+- [x] Implement commands: dev, build, new
+- [x] Add support for props and slots in components
+- [x] Ignore commented out lines during parsing
+- [x] Improve error handling (ongoing process)
+- [x] Implement templating system
+- [x] Implement component system
+- [x] Set up file copying from /public to /dist
+
 
 
 # Documentation
