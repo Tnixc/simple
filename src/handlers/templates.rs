@@ -1,11 +1,17 @@
 use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use fancy_regex::Regex;
+use lazy_static::lazy_static;
 use serde_json::Value;
 use std::{collections::HashSet, fs, path::PathBuf, str};
 
 const TEMPLATE_PATTERN: &str =
     r#"(?<!<!--)<-Template\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
+
+lazy_static! {
+    static ref TEMPLATE_REGEX: Regex =
+        Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
+}
 
 pub fn get_template(
     src: &PathBuf,
@@ -68,13 +74,10 @@ pub fn process_template(
     input: String,
     hist: HashSet<PathBuf>,
 ) -> Result<String, ProcessError> {
-    let re_template =
-        Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
-
     let mut replacements = Vec::new();
 
     let mut output = input;
-    for f in re_template.find_iter(output.as_str()) {
+    for f in TEMPLATE_REGEX.find_iter(output.as_str()) {
         if let Ok(found) = f {
             let template_name = found
                 .as_str()

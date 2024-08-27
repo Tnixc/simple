@@ -4,6 +4,7 @@ use crate::utils::{get_inside, get_targets_kv, kv_replace};
 use color_print::cformat;
 use fancy_regex::Regex;
 use std::{collections::HashSet, fs, path::PathBuf};
+use lazy_static::lazy_static;
 
 const COMPONENT_PATTERN_SELF: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
@@ -13,10 +14,20 @@ const COMPONENT_PATTERN_WRAPPING: &str =
 
 const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
 
+lazy_static! {
+    static ref REGEX_SELF_CLOSING: Regex = Regex::new(COMPONENT_PATTERN_SELF)
+        .expect("Regex failed to parse. This shouldn't happen.");
+    static ref REGEX_WRAPPING: Regex = Regex::new(COMPONENT_PATTERN_WRAPPING)
+        .expect("Regex failed to parse. This shouldn't happen.");
+    static ref REGEX_SLOT: Regex = Regex::new(SLOT_PATTERN)
+        .expect("Regex failed to parse. This shouldn't happen.");
+}
+
 pub enum ComponentTypes {
     SelfClosing,
     Wrapping,
 }
+
 
 pub fn get_component_self(
     src: &PathBuf,
@@ -71,9 +82,8 @@ pub fn get_component_slot(
 
     st = kv_replace(targets, st);
     if let Some(content) = slot_content {
-        let re = Regex::new(SLOT_PATTERN).expect("Failed to parse regex");
         // here it replaces "<slot>fallback</slot>" with "<slot></slot>, after the content is exists"
-        st = re.replace(&st, &content).to_string();
+        st = REGEX_SLOT.replace(&st, &content).to_string();
     }
 
     if !hist.insert(path.clone()) {
@@ -93,15 +103,13 @@ pub fn process_component(
     component_type: ComponentTypes,
     hist: HashSet<PathBuf>,
 ) -> Result<String, ProcessError> {
-    let regex_pattern = match component_type {
-        ComponentTypes::SelfClosing => COMPONENT_PATTERN_SELF,
-        ComponentTypes::Wrapping => COMPONENT_PATTERN_WRAPPING,
+    let regex = match component_type {
+        ComponentTypes::SelfClosing => &*REGEX_SELF_CLOSING,
+        ComponentTypes::Wrapping => &*REGEX_WRAPPING,
     };
 
-    let re = Regex::new(regex_pattern).expect("Regex failed to parse. This shouldn't happen.");
-
     let mut output = input;
-    for f in re.find_iter(output.clone().as_str()) {
+    for f in regex.find_iter(output.clone().as_str()) {
         if let Ok(found) = f {
             let trim = found
                 .as_str()
