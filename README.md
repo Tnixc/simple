@@ -39,6 +39,7 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Unit tests and end-to-end tests
 
 ### Done
+- [x] Made it much faster by threadding at page_handler
 - [x] Enhance flexibility of Markdown syntax highlighting themes (now uses css)
 - [x] Check for circular dependencies
 - [x] Implement file watcher and Hot Module Reloading (HMR)
