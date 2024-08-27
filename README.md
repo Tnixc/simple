@@ -22,7 +22,6 @@ A simple build tool that assembles a static site from components, templates, and
 
 ### Markdown and Content
 - [ ] Fix Markdown element indentation issues
-- [ ] Enhance flexibility of Markdown syntax highlighting themes
 - [ ] Implement OG Image and meta generation, especially for Markdown posts
 
 ### Errors/Logging
@@ -40,6 +39,7 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Unit tests and end-to-end tests
 
 ### Done
+- [x] Enhance flexibility of Markdown syntax highlighting themes (now uses css)
 - [x] Check for circular dependencies
 - [x] Implement file watcher and Hot Module Reloading (HMR)
 - [x] Enhance logging with color, status, etc.

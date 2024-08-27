@@ -1438,7 +1438,6 @@ dependencies = [
  "rouille",
  "serde_json",
  "simple-websockets",
- "syntect",
 ]
 
 [[package]]
