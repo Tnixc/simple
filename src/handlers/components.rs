@@ -1,6 +1,6 @@
 use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
 use crate::handlers::pages::page;
-use crate::utils::{get_inside, kv_replace, get_targets_kv};
+use crate::utils::{get_inside, get_targets_kv, kv_replace};
 use color_print::cformat;
 use fancy_regex::Regex;
 use std::{collections::HashSet, fs, path::PathBuf};
@@ -8,10 +8,15 @@ use std::{collections::HashSet, fs, path::PathBuf};
 const COMPONENT_PATTERN_SELF: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
 
-const COMPONENT_PATTERN_OPEN: &str =
+const COMPONENT_PATTERN_WRAPPING: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*>(?!.*?-->)"#;
 
 const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
+
+pub enum ComponentTypes {
+    SelfClosing,
+    Wrapping,
+}
 
 pub fn get_component_self(
     src: &PathBuf,
@@ -53,7 +58,10 @@ pub fn get_component_slot(
     let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
-        let msg = cformat!("The component <r>{}</> does not contain a proper slot tag", path.to_str().unwrap());
+        let msg = cformat!(
+            "The component <r>{}</> does not contain a proper slot tag",
+            path.to_str().unwrap()
+        );
         return Err(ProcessError {
             error_type: ErrorType::Syntax,
             item: WithItem::Component,
@@ -81,25 +89,19 @@ pub fn get_component_slot(
 
 pub fn process_component(
     src: &PathBuf,
-    string: &mut String,
-    component_type: &str,
+    input: String,
+    component_type: ComponentTypes,
     hist: HashSet<PathBuf>,
-) -> Result<(), ProcessError> {
-    let pattern = match component_type {
-        "self" => COMPONENT_PATTERN_SELF,
-        "open" => COMPONENT_PATTERN_OPEN,
-        _ => {
-            return Err(ProcessError {
-                error_type: ErrorType::Syntax,
-                item: WithItem::Component,
-                path_or_message: PathBuf::from("unknown"),
-            })
-        }
+) -> Result<String, ProcessError> {
+    let regex_pattern = match component_type {
+        ComponentTypes::SelfClosing => COMPONENT_PATTERN_SELF,
+        ComponentTypes::Wrapping => COMPONENT_PATTERN_WRAPPING,
     };
 
-    let re = Regex::new(pattern).expect("Regex failed to parse. This shouldn't happen.");
+    let re = Regex::new(regex_pattern).expect("Regex failed to parse. This shouldn't happen.");
 
-    for f in re.find_iter(&string.to_owned()) {
+    let mut output = input;
+    for f in re.find_iter(output.clone().as_str()) {
         if let Ok(found) = f {
             let trim = found
                 .as_str()
@@ -111,20 +113,24 @@ pub fn process_component(
             let name = trim.split_whitespace().next().unwrap_or(trim);
             let targets = get_targets_kv(name, found.as_str())?;
 
-            if component_type == "self" {
-                let target = found.as_str();
-                let replacement = get_component_self(src, name, targets, hist.clone())?;
-                *string = string.replacen(target, &replacement, 1);
-            } else {
-                let end = format!("</{}>", &name);
-                let slot_content = get_inside(string, found.as_str(), &end);
-                let replacement =
-                    get_component_slot(src, name, targets, slot_content.clone(), hist.clone())?;
-                *string = string.replacen(slot_content.unwrap_or("".to_string()).as_str(), "", 1);
-                *string = string.replacen(&end, "", 1);
-                *string = string.replacen(found.as_str(), &replacement, 1);
-            };
+            match component_type {
+                ComponentTypes::SelfClosing => {
+                    let target = found.as_str();
+                    let replacement = get_component_self(src, name, targets, hist.clone())?;
+                    output = output.replacen(target, &replacement, 1);
+                }
+                ComponentTypes::Wrapping => {
+                    let end = format!("</{}>", &name);
+                    let slot_content = get_inside(output.clone(), found.as_str(), &end);
+                    let replacement =
+                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone())?;
+                    output =
+                        output.replacen(slot_content.unwrap_or("".to_string()).as_str(), "", 1);
+                    output = output.replacen(&end, "", 1);
+                    output = output.replacen(found.as_str(), &replacement, 1);
+                }
+            }
         }
     }
-    Ok(())
+    Ok(output)
 }
