@@ -1,8 +1,8 @@
+use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
 use crate::handlers::pages::page;
-use crate::error::{ProcessError, ErrorType, WithItem, MapPageError};
-use std::{collections::HashSet, fs, path::PathBuf, str};
-use serde_json::Value;
 use fancy_regex::Regex;
+use serde_json::Value;
+use std::{collections::HashSet, fs, path::PathBuf, str};
 
 const TEMPLATE_PATTERN: &str =
     r#"(?<!<!--)<-Template\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#;
@@ -22,12 +22,19 @@ pub fn get_template(
         .join(name.replace(":", "/"))
         .with_extension("data.json");
 
-    let template_content_utf =
-        fs::read(&template_path).map_page_err(WithItem::Template, ErrorType::NotFound, &template_path)?;
-    let template =
-        String::from_utf8(template_content_utf).map_page_err(WithItem::Template, ErrorType::Utf8, &template_path)?;
+    let template_content_utf = fs::read(&template_path).map_page_err(
+        WithItem::Template,
+        ErrorType::NotFound,
+        &template_path,
+    )?;
+    let template = String::from_utf8(template_content_utf).map_page_err(
+        WithItem::Template,
+        ErrorType::Utf8,
+        &template_path,
+    )?;
 
-    let data_content_utf8 = fs::read(&data_path).map_page_err(WithItem::Data, ErrorType::NotFound, &data_path)?;
+    let data_content_utf8 =
+        fs::read(&data_path).map_page_err(WithItem::Data, ErrorType::NotFound, &data_path)?;
     let data_str = str::from_utf8(&data_content_utf8).unwrap();
     let v: Value = serde_json::from_str(data_str).expect("JSON decode error");
     let items = v.as_array().expect("JSON wasn't an array");
@@ -58,15 +65,16 @@ pub fn get_template(
 
 pub fn process_template(
     src: &PathBuf,
-    string: &mut String,
+    input: String,
     hist: HashSet<PathBuf>,
-) -> Result<(), ProcessError> {
+) -> Result<String, ProcessError> {
     let re_template =
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
 
     let mut replacements = Vec::new();
 
-    for f in re_template.find_iter(string) {
+    let mut output = input;
+    for f in re_template.find_iter(output.as_str()) {
         if let Ok(found) = f {
             let template_name = found
                 .as_str()
@@ -82,8 +90,8 @@ pub fn process_template(
     }
 
     for (old, new) in replacements.into_iter().rev() {
-        *string = string.replacen(&old, &new, 1);
+        output = output.replacen(&old, &new, 1);
     }
 
-    Ok(())
+    Ok(output)
 }
