@@ -3,8 +3,8 @@ use crate::handlers::pages::page;
 use crate::utils::{get_inside, get_targets_kv, kv_replace};
 use color_print::cformat;
 use fancy_regex::Regex;
-use std::{collections::HashSet, fs, path::PathBuf};
 use lazy_static::lazy_static;
+use std::{collections::HashSet, fs, path::PathBuf};
 
 const COMPONENT_PATTERN_SELF: &str =
     r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
@@ -15,19 +15,20 @@ const COMPONENT_PATTERN_WRAPPING: &str =
 const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
 
 lazy_static! {
-    static ref REGEX_SELF_CLOSING: Regex = Regex::new(COMPONENT_PATTERN_SELF)
-        .expect("Regex failed to parse. This shouldn't happen.");
+    static ref REGEX_SELF_CLOSING: Regex =
+        Regex::new(COMPONENT_PATTERN_SELF).expect("Regex failed to parse. This shouldn't happen.");
+        
     static ref REGEX_WRAPPING: Regex = Regex::new(COMPONENT_PATTERN_WRAPPING)
         .expect("Regex failed to parse. This shouldn't happen.");
-    static ref REGEX_SLOT: Regex = Regex::new(SLOT_PATTERN)
-        .expect("Regex failed to parse. This shouldn't happen.");
+    
+    static ref REGEX_SLOT: Regex =
+        Regex::new(SLOT_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
 }
 
 pub enum ComponentTypes {
     SelfClosing,
     Wrapping,
 }
-
 
 pub fn get_component_self(
     src: &PathBuf,

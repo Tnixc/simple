@@ -16,7 +16,7 @@ pub enum WithItem {
     Template,
     Data,
     File,
-    None
+    None,
 }
 
 impl fmt::Display for WithItem {
@@ -26,7 +26,7 @@ impl fmt::Display for WithItem {
             WithItem::Template => "template",
             WithItem::Data => "data",
             WithItem::File => "file or directory",
-            WithItem::None => "item"
+            WithItem::None => "item",
         };
         write!(f, "{}", msg)
     }
@@ -51,8 +51,10 @@ impl fmt::Display for ProcessError {
             ErrorType::Io => cformat!("The {item} <r>{path}</> encountered an IO error."),
             ErrorType::Utf8 => cformat!("The {item} <r>{path}</> encountered an UTF8 error."),
             ErrorType::Syntax => cformat!("Syntax error: {path}."),
-            ErrorType::Circular => cformat!("The {item} <r>{path}</> contains a circular dependency."),
-            ErrorType::Other => cformat!("Error: <r>{path}</>.")
+            ErrorType::Circular => {
+                cformat!("The {item} <r>{path}</> contains a circular dependency.")
+            }
+            ErrorType::Other => cformat!("Error: <r>{path}</>."),
         };
         write!(f, "{err_msg}")
     }
