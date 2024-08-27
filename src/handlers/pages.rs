@@ -21,7 +21,7 @@ pub fn page(
 
     string = process_component(src, string, ComponentTypes::Wrapping, hist.clone())?;
     string = process_component(src, string, ComponentTypes::SelfClosing, hist.clone())?;
-    process_template(src, &mut string, hist.clone())?;
+    string = process_template(src, string, hist.clone())?;
 
     if dev {
         string = string.replace("<head>", &format!("<head>{}", SCRIPT));

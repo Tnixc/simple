@@ -12,7 +12,7 @@ mod utils;
 use crate::handlers::pages::process_pages;
 use color_print::{cformat, cprintln};
 use dev::spawn_watcher;
-use error::{ProcessError, ErrorType, MapPageError, WithItem};
+use error::{ErrorType, MapPageError, ProcessError, WithItem};
 use std::{env, fs, path::PathBuf, time::Instant};
 
 fn main() -> () {
