@@ -39,7 +39,7 @@ A simple build tool that assembles a static site from components, templates, and
 ### Testing
 - [ ] Unit tests and end-to-end tests
 
-### Completed Features
+### Done
 - [x] Check for circular dependencies
 - [x] Implement file watcher and Hot Module Reloading (HMR)
 - [x] Enhance logging with color, status, etc.

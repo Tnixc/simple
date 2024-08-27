@@ -1,5 +1,5 @@
-use crate::error::{ProcessError, ErrorType, MapPageError, WithItem};
-use crate::handlers::components::process_component;
+use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
+use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::markdown_element;
 use crate::handlers::templates::process_template;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
@@ -19,8 +19,8 @@ pub fn page(
         string = markdown_element(string);
     }
 
-    process_component(src, &mut string, "open", hist.clone())?;
-    process_component(src, &mut string, "self", hist.clone())?;
+    string = process_component(src, string, ComponentTypes::Wrapping, hist.clone())?;
+    string = process_component(src, string, ComponentTypes::SelfClosing, hist.clone())?;
     process_template(src, &mut string, hist.clone())?;
 
     if dev {

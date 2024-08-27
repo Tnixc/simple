@@ -48,7 +48,7 @@ pub fn kv_replace(kv: Vec<(&str, &str)>, mut from: String) -> String {
     from
 }
 
-pub fn get_inside(input: &str, from: &str, to: &str) -> Option<String> {
+pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
     let start_index = input.find(from)?;
     let start_pos = start_index + from.len();
     let end_index = input[start_pos..].find(to).map(|i| i + start_pos)?;
