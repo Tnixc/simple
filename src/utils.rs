@@ -4,20 +4,24 @@ use fancy_regex::Regex;
 use std::fs;
 use std::path::PathBuf;
 use WithItem::File;
+use lazy_static::lazy_static;
 
+const KV_PATTERN: &str = r#"(\w+)=(['"])(?:(?!\2).)*\2"#;
+lazy_static!{
+    static ref KV_REGEX: Regex = Regex::new(KV_PATTERN).expect("Regex failed to parse, this shouldn't happen");
+}
 pub fn get_targets_kv<'a>(
     name: &str,
     found: &'a str,
 ) -> Result<Vec<(&'a str, &'a str)>, ProcessError> {
     let mut targets: Vec<(&str, &str)> = Vec::new();
     // Regex for key-value pairs in components
-    let re = Regex::new(r#"(\w+)=(['"])(?:(?!\2).)*\2"#).unwrap();
     let str = found
         .trim_start_matches(&("<".to_owned() + name))
         .trim_end_matches(">")
         .trim_end_matches("/>");
 
-    for item in re.find_iter(str) {
+    for item in KV_REGEX.find_iter(str) {
         if let Ok(item) = item {
             if let Some((k, mut v)) = item.as_str().split_once('=') {
                 v = v.trim_matches(|c| c == '\'' || c == '"');

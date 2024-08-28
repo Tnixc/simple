@@ -172,8 +172,6 @@ Will render out to:
 <img src="image.webp" alt="alt" />
 ```
 
-The contents inside the markdown tags need to be indented for now. Fix coming soon?
-
 ### Syntax highlighting
 
 Syntax highlighting is supported. It outputs to codeblocks with the syntect highlighting classes. There's tools to convert .tmTheme(textmate theme) files into the css. I made a [website](https://tm-theme2css.vercel.app/) for that.
