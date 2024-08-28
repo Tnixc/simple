@@ -1,5 +1,5 @@
 use crate::error::ErrorType::Io;
-use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
+use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use fancy_regex::Regex;
 use std::fs;
 use std::path::PathBuf;
@@ -26,14 +26,16 @@ pub fn get_targets_kv<'a>(
                 return Err(ProcessError {
                     error_type: ErrorType::Syntax,
                     item: WithItem::Component,
-                    path_or_message: PathBuf::from(name),
+                    path: PathBuf::from(name),
+                    message: Some("Couldn't split key-value pair.".to_string()),
                 });
             }
         } else {
             return Err(ProcessError {
                 error_type: ErrorType::Syntax,
                 item: WithItem::Component,
-                path_or_message: PathBuf::from(name),
+                path: PathBuf::from(name),
+                message: Some("Couldn't find key-value pair.".to_string()),
             });
         }
     }
@@ -62,10 +64,10 @@ pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
 
 pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
     if !dist.exists() {
-        fs::create_dir_all(dist).map_page_err(File, Io, &PathBuf::from(dist))?;
+        fs::create_dir_all(dist).map_proc_err(File, Io, &PathBuf::from(dist), None)?;
     }
 
-    let entries = fs::read_dir(public).map_page_err(File, Io, &PathBuf::from(public))?;
+    let entries = fs::read_dir(public).map_proc_err(File, Io, &PathBuf::from(public), None)?;
 
     for entry in entries {
         let entry = entry.unwrap().path();
@@ -75,9 +77,19 @@ pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
             copy_into(&entry, &dest_path)?;
         } else {
             if let Some(parent) = dest_path.parent() {
-                fs::create_dir_all(parent).map_page_err(File, Io, &PathBuf::from(&dest_path))?;
+                fs::create_dir_all(parent).map_proc_err(
+                    File,
+                    Io,
+                    &PathBuf::from(&dest_path),
+                    None,
+                )?;
             }
-            fs::copy(&entry, &dest_path).map_page_err(File, Io, &PathBuf::from(&dest_path))?;
+            fs::copy(&entry, &dest_path).map_proc_err(
+                File,
+                Io,
+                &PathBuf::from(&dest_path),
+                None,
+            )?;
         }
     }
     Ok(())

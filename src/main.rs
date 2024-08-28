@@ -12,7 +12,7 @@ mod utils;
 use crate::handlers::pages::process_pages;
 use color_print::{cformat, cprintln};
 use dev::spawn_watcher;
-use error::{ErrorType, MapPageError, ProcessError, WithItem};
+use error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use std::{env, fs, path::PathBuf, time::Instant};
 
 fn main() -> () {
@@ -65,10 +65,11 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), ProcessError> {
     let public = src.join("public");
 
     if !dir.join(s).exists() {
-        fs::create_dir(dir.join(s)).map_page_err(
+        fs::create_dir(dir.join(s)).map_proc_err(
             WithItem::File,
-            ErrorType::NotFound,
+            ErrorType::Io,
             &PathBuf::from(dir.join(s)),
+            None,
         )?;
     }
 

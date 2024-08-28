@@ -1,4 +1,4 @@
-use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
+use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::markdown_element;
 use crate::handlers::templates::process_template;
@@ -10,12 +10,12 @@ const SCRIPT: &str = include_str!("../dev/inline_script.html");
 
 pub fn page(
     src: &PathBuf,
-    contents: Vec<u8>,
+    mut string: String,
     dev: bool,
     hist: HashSet<PathBuf>,
 ) -> Result<String, ProcessError> {
-    let mut string =
-        String::from_utf8(contents).map_page_err(WithItem::File, ErrorType::Io, src)?;
+    // let mut string =
+    //     String::from_utf8(contents).map_proc_err(WithItem::File, ErrorType::Io, src, None)?;
 
     if string.contains("</markdown>") {
         string = markdown_element(string);
@@ -39,7 +39,7 @@ pub fn process_pages(
     pages: PathBuf,
     dev: bool,
 ) -> Result<(), ProcessError> {
-    let entries = fs::read_dir(pages).map_page_err(WithItem::File, ErrorType::Io, src)?;
+    let entries = fs::read_dir(pages).map_proc_err(WithItem::File, ErrorType::Io, src, None)?;
     let working_dir = if dev { "dev" } else { "dist" };
 
     let (sender, receiver) = mpsc::channel();
@@ -58,7 +58,12 @@ pub fn process_pages(
                     let result = (|| -> Result<(), ProcessError> {
                         let result = page(
                             &src,
-                            fs::read(&path).map_page_err(WithItem::File, ErrorType::Io, &path)?,
+                            fs::read_to_string(&path).map_proc_err(
+                                WithItem::File,
+                                ErrorType::Io,
+                                &path,
+                                None,
+                            )?,
                             dev,
                             HashSet::new(),
                         )?;
@@ -69,20 +74,23 @@ pub fn process_pages(
                                 .unwrap(),
                         );
 
-                        fs::create_dir_all(out_path.parent().unwrap()).map_page_err(
+                        fs::create_dir_all(out_path.parent().unwrap()).map_proc_err(
                             WithItem::File,
                             ErrorType::Io,
                             &out_path,
+                            None,
                         )?;
-                        let mut f = std::fs::File::create(&out_path).map_page_err(
+                        let mut f = std::fs::File::create(&out_path).map_proc_err(
                             WithItem::File,
                             ErrorType::Io,
                             &out_path,
+                            None,
                         )?;
-                        f.write_all(result.as_bytes()).map_page_err(
+                        f.write_all(result.as_bytes()).map_proc_err(
                             WithItem::File,
                             ErrorType::Io,
                             &out_path,
+                            None,
                         )?;
                         Ok(())
                     })();
