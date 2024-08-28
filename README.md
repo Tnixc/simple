@@ -5,6 +5,7 @@ A simple build tool that assembles a static site from components, templates, and
 ## Todo List
 
 ### Core
+- [ ] LSP
 - [ ] Implement proper Markdown rendering from .md files
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
@@ -24,8 +25,7 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Implement OG Image and meta generation, especially for Markdown posts
 
 ### Errors/Logging
-- [ ] Enhance error messages with exact line and file references
-- [ ] Further improve error handling beyond current state
+- [ ] Multiple errors
 
 ### Perf
 - [ ] Implement selective component caching to reduce disk reads
@@ -38,6 +38,7 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Unit tests and end-to-end tests
 
 ### Done
+- [x] Better errs with file and more specific messages
 - [x] Fix Markdown element indentation issues
 - [x] Fix errors to more accurately reflect the source of the error
 - [x] Made it much faster by threadding at page_handler
