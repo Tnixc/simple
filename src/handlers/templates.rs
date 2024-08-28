@@ -1,4 +1,4 @@
-use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
+use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
@@ -28,21 +28,21 @@ pub fn get_template(
         .join(name.replace(":", "/"))
         .with_extension("data.json");
 
-    let template_content_utf = fs::read(&template_path).map_page_err(
+    let template = fs::read_to_string(&template_path).map_proc_err(
         WithItem::Template,
-        ErrorType::NotFound,
+        ErrorType::Io,
         &template_path,
-    )?;
-    let template = String::from_utf8(template_content_utf).map_page_err(
-        WithItem::Template,
-        ErrorType::Utf8,
-        &template_path,
+        Some("Failed to read template file".to_string()),
     )?;
 
-    let data_content_utf8 =
-        fs::read(&data_path).map_page_err(WithItem::Data, ErrorType::NotFound, &data_path)?;
-    let data_str = str::from_utf8(&data_content_utf8).unwrap();
-    let v: Value = serde_json::from_str(data_str).expect("JSON decode error");
+    let data = fs::read_to_string(&data_path).map_proc_err(
+        WithItem::Data,
+        ErrorType::Io,
+        &data_path,
+        Some("Failed to read data file".to_string()),
+    )?;
+
+    let v: Value = serde_json::from_str(&data).expect("JSON decode error");
     let items = v.as_array().expect("JSON wasn't an array");
 
     let mut contents = String::new();
@@ -63,10 +63,11 @@ pub fn get_template(
         return Err(ProcessError {
             error_type: ErrorType::Circular,
             item: WithItem::Template,
-            path_or_message: template_path,
+            path: template_path,
+            message: Some(format!("{:?}", hist)),
         });
     }
-    return page(src, contents.into_bytes(), false, hist);
+    return page(src, contents, false, hist);
 }
 
 pub fn process_template(

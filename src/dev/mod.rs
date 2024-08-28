@@ -29,7 +29,8 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), ProcessE
             return Err(ProcessError {
                 error_type: ErrorType::Other,
                 item: None,
-                path_or_message: PathBuf::from(format!("Watch error: {e}")),
+                path: PathBuf::from("Watcher"),
+                message: Some(format!("{e} (internal watcher error)")),
             })
         }
     }

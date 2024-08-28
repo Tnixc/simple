@@ -1,7 +1,6 @@
-use crate::error::{ErrorType, MapPageError, ProcessError, WithItem};
+use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use crate::utils::{get_inside, get_targets_kv, kv_replace};
-use color_print::cformat;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
 use std::{collections::HashSet, fs, path::PathBuf};
@@ -17,10 +16,8 @@ const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
 lazy_static! {
     static ref REGEX_SELF_CLOSING: Regex =
         Regex::new(COMPONENT_PATTERN_SELF).expect("Regex failed to parse. This shouldn't happen.");
-        
     static ref REGEX_WRAPPING: Regex = Regex::new(COMPONENT_PATTERN_WRAPPING)
         .expect("Regex failed to parse. This shouldn't happen.");
-    
     static ref REGEX_SLOT: Regex =
         Regex::new(SLOT_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
 }
@@ -41,18 +38,19 @@ pub fn get_component_self(
         .join(component.replace(":", "/"))
         .with_extension("component.html");
 
-    let v = fs::read(&path).map_page_err(WithItem::Component, ErrorType::NotFound, &path)?;
-    let mut st = String::from_utf8(v).map_page_err(WithItem::Component, ErrorType::Utf8, &path)?;
+    let mut st =
+        fs::read_to_string(&path).map_proc_err(WithItem::Component, ErrorType::Io, &path, None)?;
+
     st = kv_replace(targets, st);
-    let contents = st.clone().into_bytes();
     if !hist.insert(path.clone()) {
         return Err(ProcessError {
             error_type: ErrorType::Circular,
             item: WithItem::Component,
-            path_or_message: PathBuf::from(path),
+            path: PathBuf::from(path),
+            message: Some(format!("{:?}", hist)),
         });
     }
-    return page(src, contents, false, hist);
+    return page(src, st, false, hist);
 }
 
 pub fn get_component_slot(
@@ -66,18 +64,17 @@ pub fn get_component_slot(
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
-    let v = fs::read(&path).map_page_err(WithItem::Component, ErrorType::NotFound, &path)?;
-    let mut st = String::from_utf8(v).expect("Contents of component is not UTF8");
+    let mut st =
+        fs::read_to_string(&path).map_proc_err(WithItem::Component, ErrorType::Io, &path, None)?;
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
-        let msg = cformat!(
-            "The component <r>{}</> does not contain a proper slot tag",
-            path.to_str().unwrap()
-        );
         return Err(ProcessError {
             error_type: ErrorType::Syntax,
             item: WithItem::Component,
-            path_or_message: PathBuf::from(msg),
+            path,
+            message: Some(String::from(
+                "The component does not contain a proper <slot></slot> tag.",
+            )),
         });
     }
 
@@ -91,11 +88,12 @@ pub fn get_component_slot(
         return Err(ProcessError {
             error_type: ErrorType::Circular,
             item: WithItem::Component,
-            path_or_message: PathBuf::from(path),
+            path: PathBuf::from(path),
+            message: Some(format!("{:?}", hist)),
         });
     }
 
-    return page(src, st.into_bytes(), false, hist);
+    return page(src, st, false, hist);
 }
 
 pub fn process_component(
