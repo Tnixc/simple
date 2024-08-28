@@ -94,3 +94,25 @@ pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
     }
     Ok(())
 }
+
+pub fn unindent(input: &str) -> String {
+    let lines: Vec<&str> = input.lines().collect();
+
+    let min_indent = lines
+        .iter()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| line.len() - line.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    lines
+        .into_iter()
+        .map(|line| {
+            if line.len() > min_indent {
+                &line[min_indent..]
+            } else {
+                line.trim_start()
+            }
+        })
+        .collect::<Vec<&str>>()
+        .join("\n")
+}

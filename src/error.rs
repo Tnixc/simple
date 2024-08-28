@@ -42,7 +42,7 @@ impl fmt::Display for ProcessError {
         let item = &self.item;
         let message = &self.message;
         let msg_fmt = match message {
-            Some(msg) => format!("({msg})"),
+            Some(msg) => cformat!("<strong>{msg}</>"),
             None => format!(""),
         };
         let path = &self

@@ -3,9 +3,16 @@ use comrak::plugins::syntect::SyntectAdapterBuilder;
 use comrak::Options;
 use comrak::Plugins;
 use fancy_regex::Regex;
+use lazy_static::lazy_static;
+
+use crate::utils;
 
 const MARKDOWN_ELEMENT_PATTERN: &str = r#"(?<!<!--)<markdown>([\s\S]+?)<\/markdown>(?!-->)"#;
 
+lazy_static! {
+    static ref MARKDOWN_REGEX: Regex = Regex::new(MARKDOWN_ELEMENT_PATTERN)
+        .expect("Regex failed to parse. This shouldn't happen.");
+}
 pub fn markdown_element(mut string: String) -> String {
     let codefence_syntax_highlighter = SyntectAdapterBuilder::new().css();
     let mut plugins = Plugins::default();
@@ -23,17 +30,14 @@ pub fn markdown_element(mut string: String) -> String {
     let built = &codefence_syntax_highlighter.build();
     plugins.render.codefence_syntax_highlighter = Some(built);
 
-    let re_markdown = Regex::new(MARKDOWN_ELEMENT_PATTERN)
-        .expect("Regex failed to parse. This shouldn't happen.");
-
-    for f in re_markdown.find_iter(&string.to_owned()) {
+    for f in MARKDOWN_REGEX.find_iter(&string.to_owned()) {
         if f.is_ok() {
             let found = f.unwrap().as_str();
             let res = found
                 .trim_start_matches("<markdown>")
                 .trim_end_matches("</markdown>");
-
-            let rendered = &markdown_to_html_with_plugins(&res, &options, &plugins);
+            let content = utils::unindent(res);
+            let rendered = &markdown_to_html_with_plugins(&content, &options, &plugins);
             string = string.replacen(found, rendered, 1);
         }
     }
