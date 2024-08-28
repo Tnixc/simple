@@ -21,7 +21,6 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Improve JSON parsing error handling
 
 ### Markdown and Content
-- [ ] Fix Markdown element indentation issues
 - [ ] Implement OG Image and meta generation, especially for Markdown posts
 
 ### Errors/Logging
@@ -39,6 +38,7 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Unit tests and end-to-end tests
 
 ### Done
+- [x] Fix Markdown element indentation issues
 - [x] Fix errors to more accurately reflect the source of the error
 - [x] Made it much faster by threadding at page_handler
 - [x] Enhance flexibility of Markdown syntax highlighting themes (now uses css)
