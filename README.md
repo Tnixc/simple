@@ -5,7 +5,7 @@ A simple build tool that assembles a static site from components, templates, and
 ## Todo List
 
 ### Core
-- [ ] LSP
+- [ ] LSP (and check command)
 - [ ] Implement proper Markdown rendering from .md files
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
@@ -25,7 +25,8 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Implement OG Image and meta generation, especially for Markdown posts
 
 ### Errors/Logging
-- [ ] Multiple errors
+- [ ] Multiple errors at once
+- [ ] Exact file and line in error messages
 
 ### Perf
 - [ ] Implement selective component caching to reduce disk reads
