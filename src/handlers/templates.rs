@@ -1,5 +1,6 @@
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::pages::page;
+use crate::utils::ProcessResult;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
 use serde_json::Value;
@@ -70,11 +71,8 @@ pub fn get_template(
     return page(src, contents, false, hist);
 }
 
-pub fn process_template(
-    src: &PathBuf,
-    input: String,
-    hist: HashSet<PathBuf>,
-) -> Result<String, ProcessError> {
+pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) -> ProcessResult {
+    let mut errors = Vec::new();
     let mut replacements = Vec::new();
 
     let mut output = input;
@@ -88,7 +86,9 @@ pub fn process_template(
                 .trim()
                 .trim_end_matches("}");
 
-            let replacement = get_template(src, template_name, hist.clone())?;
+            let replacement = get_template(src, template_name, hist.clone())
+                .inspect_err(|e| errors.push((*e).clone()))
+                .unwrap_or(template_name.to_string());
             replacements.push((found.as_str().to_string(), replacement));
         }
     }
@@ -97,5 +97,6 @@ pub fn process_template(
         output = output.replacen(&old, &new, 1);
     }
 
-    Ok(output)
+    // Ok(output)
+    return ProcessResult { output, errors };
 }

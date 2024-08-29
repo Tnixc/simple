@@ -1,14 +1,15 @@
 use crate::error::ErrorType::Io;
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use fancy_regex::Regex;
+use lazy_static::lazy_static;
 use std::fs;
 use std::path::PathBuf;
 use WithItem::File;
-use lazy_static::lazy_static;
 
 const KV_PATTERN: &str = r#"(\w+)=(['"])(?:(?!\2).)*\2"#;
-lazy_static!{
-    static ref KV_REGEX: Regex = Regex::new(KV_PATTERN).expect("Regex failed to parse, this shouldn't happen");
+lazy_static! {
+    static ref KV_REGEX: Regex =
+        Regex::new(KV_PATTERN).expect("Regex failed to parse, this shouldn't happen");
 }
 pub fn get_targets_kv<'a>(
     name: &str,
@@ -119,4 +120,9 @@ pub fn unindent(input: &str) -> String {
         })
         .collect::<Vec<&str>>()
         .join("\n")
+}
+
+pub struct ProcessResult {
+    pub output: String,
+    pub errors: Vec<ProcessError>,
 }

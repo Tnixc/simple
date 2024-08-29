@@ -1,6 +1,6 @@
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::pages::page;
-use crate::utils::{get_inside, get_targets_kv, kv_replace};
+use crate::utils::{get_inside, get_targets_kv, kv_replace, ProcessResult};
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
 use std::{collections::HashSet, fs, path::PathBuf};
@@ -26,7 +26,6 @@ pub enum ComponentTypes {
     SelfClosing,
     Wrapping,
 }
-
 pub fn get_component_self(
     src: &PathBuf,
     component: &str,
@@ -101,11 +100,13 @@ pub fn process_component(
     input: String,
     component_type: ComponentTypes,
     hist: HashSet<PathBuf>,
-) -> Result<String, ProcessError> {
+) -> ProcessResult {
     let regex = match component_type {
         ComponentTypes::SelfClosing => &*REGEX_SELF_CLOSING,
         ComponentTypes::Wrapping => &*REGEX_WRAPPING,
     };
+
+    let mut errors: Vec<ProcessError> = Vec::new();
 
     let mut output = input;
     for f in regex.find_iter(output.clone().as_str()) {
@@ -118,19 +119,24 @@ pub fn process_component(
                 .trim_end_matches(">")
                 .trim();
             let name = trim.split_whitespace().next().unwrap_or(trim);
-            let targets = get_targets_kv(name, found.as_str())?;
-
+            let targets = get_targets_kv(name, found.as_str())
+                .inspect_err(|e| errors.push((*e).clone()))
+                .unwrap_or(Vec::new());
             match component_type {
                 ComponentTypes::SelfClosing => {
                     let target = found.as_str();
-                    let replacement = get_component_self(src, name, targets, hist.clone())?;
+                    let replacement = get_component_self(src, name, targets, hist.clone())
+                        .inspect_err(|e| errors.push((*e).clone()))
+                        .unwrap_or("".to_string());
                     output = output.replacen(target, &replacement, 1);
                 }
                 ComponentTypes::Wrapping => {
                     let end = format!("</{}>", &name);
                     let slot_content = get_inside(output.clone(), found.as_str(), &end);
                     let replacement =
-                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone())?;
+                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone())
+                            .inspect_err(|e| errors.push((*e).clone()))
+                            .unwrap_or("".to_string());
                     output =
                         output.replacen(slot_content.unwrap_or("".to_string()).as_str(), "", 1);
                     output = output.replacen(&end, "", 1);
@@ -139,5 +145,5 @@ pub fn process_component(
             }
         }
     }
-    Ok(output)
+    return ProcessResult { output, errors };
 }

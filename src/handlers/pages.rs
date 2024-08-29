@@ -2,6 +2,7 @@ use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::markdown_element;
 use crate::handlers::templates::process_template;
+use color_print::cprintln;
 use std::sync::mpsc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
@@ -14,21 +15,42 @@ pub fn page(
     dev: bool,
     hist: HashSet<PathBuf>,
 ) -> Result<String, ProcessError> {
-    // let mut string =
-    //     String::from_utf8(contents).map_proc_err(WithItem::File, ErrorType::Io, src, None)?;
-
     if string.contains("</markdown>") {
         string = markdown_element(string);
     }
 
-    string = process_component(src, string, ComponentTypes::Wrapping, hist.clone())?;
-    string = process_component(src, string, ComponentTypes::SelfClosing, hist.clone())?;
-    string = process_template(src, string, hist.clone())?;
+    let mut vec_errs: Vec<ProcessError> = Vec::new();
+    let mut er;
 
+    let result = process_component(src, string.clone(), ComponentTypes::Wrapping, hist.clone());
+    string = result.output;
+    er = result.errors;
+    vec_errs.append(&mut er);
+
+    let result = process_component(
+        src,
+        string.clone(),
+        ComponentTypes::SelfClosing,
+        hist.clone(),
+    );
+    string = result.output;
+    er = result.errors;
+    vec_errs.append(&mut er);
+
+    let result = process_template(src, string.clone(), hist.clone());
+    string = result.output;
+    er = result.errors;
+    vec_errs.append(&mut er);
+    
     if dev {
         string = string.replace("<head>", &format!("<head>{}", SCRIPT));
     }
 
+    let mut e_i = 1;
+    for e in vec_errs {
+        cprintln!("<strong><r>Error {e_i}</></>: {e}");
+        e_i += 1;
+    }
     Ok(string)
 }
 
