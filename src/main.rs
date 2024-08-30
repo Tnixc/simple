@@ -64,7 +64,7 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
     let public = src.join("public");
 
     if !dir.join(s).exists() {
-        fs::create_dir(dir.join(s))
+        let _ = fs::create_dir(dir.join(s))
             .map_proc_err(
                 WithItem::File,
                 ErrorType::Io,
@@ -76,7 +76,7 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
 
     process_pages(&dir, &src, src.clone(), pages, dev)?;
 
-    utils::copy_into(&public, &dist).inspect_err(|e| errors.push((*e).clone()));
+    let _ = utils::copy_into(&public, &dist).inspect_err(|e| errors.push((*e).clone()));
     let duration = Instant::now().duration_since(start).as_millis();
 
     cprintln!("<g><s>Done</></> in {duration} ms.");

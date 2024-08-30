@@ -120,7 +120,7 @@ pub fn process_pages(
                                 .unwrap(),
                         );
 
-                        fs::create_dir_all(out_path.parent().unwrap())
+                        let _ = fs::create_dir_all(out_path.parent().unwrap())
                             .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
                             .inspect_err(|e| errors.push((*e).clone()));
                         let f = std::fs::File::create(&out_path)
@@ -128,7 +128,8 @@ pub fn process_pages(
                             .inspect_err(|e| errors.push((*e).clone()));
                         match f {
                             Ok(mut f) => {
-                                f.write_all(result.output.as_bytes())
+                                let _ = f
+                                    .write_all(result.output.as_bytes())
                                     .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
                                     .inspect_err(|e| errors.push((*e).clone()));
                             }
