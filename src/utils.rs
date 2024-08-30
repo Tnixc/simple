@@ -141,8 +141,8 @@ pub fn format_errs(errors: &Vec<ProcessError>) -> String {
     let mut msg = String::new();
     for er in errors {
         msg.push_str(&format!(
-            "{}",
-            cformat!("<s><r>Build error {e_i}</></>: {er}")
+            "<p>{}</p>",
+            cformat!("<s><r>Build error {e_i}</></>: {er}\n")
         ));
         e_i += 1;
     }
