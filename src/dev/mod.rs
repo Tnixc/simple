@@ -1,6 +1,6 @@
 use crate::error::{ErrorType, ProcessError, WithItem};
 use crate::*;
-use color_print::{cformat, cprintln};
+use color_print::cprintln;
 use notify::{RecursiveMode, Watcher};
 use rouille::Response;
 use serde_json;
@@ -16,7 +16,7 @@ use std::thread;
 use std::time::Duration;
 use WithItem::None;
 
-fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), ProcessError> {
+fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<ProcessError>> {
     let args: Vec<String> = env::args().collect();
     match res {
         Ok(s) => {
@@ -26,12 +26,12 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), ProcessE
             return result;
         }
         Err(e) => {
-            return Err(ProcessError {
+            return Err(vec![ProcessError {
                 error_type: ErrorType::Other,
                 item: None,
                 path: PathBuf::from("Watcher"),
                 message: Some(format!("{e} (internal watcher error)")),
-            })
+            }])
         }
     }
 }
@@ -96,7 +96,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     thread::spawn(|| spawn_websocket_handler(receiver));
 
     let _ = build(args.clone(), true).map_err(|e| {
-        eprintln!("{}", cformat!("  <k>|</> <s><r>Build error</></>: {e}"));
+        utils::print_vec_errs(&e);
     });
 
     let dist = PathBuf::from(&args[2]).join("dev");
@@ -120,8 +120,8 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
                 }
             } else {
                 let e = result.unwrap_err();
-                let _ = sender.send(e.to_string());
-                cprintln!("<s><r>Error</></>: {e}");
+                let _ = sender.send(utils::format_errs(&e));
+                utils::print_vec_errs(&e);
             }
         },
         config,

@@ -3,7 +3,6 @@ use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::markdown_element;
 use crate::handlers::templates::process_template;
 use crate::utils::ProcessResult;
-use color_print::cprintln;
 use std::sync::mpsc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
@@ -24,17 +23,12 @@ fn process_step<F>(
     vec_errs.extend(result.errors);
 }
 
-pub fn page(
-    src: &PathBuf,
-    mut string: String,
-    dev: bool,
-    hist: HashSet<PathBuf>,
-) -> Result<String, ProcessError> {
+pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>) -> ProcessResult {
     if string.contains("</markdown>") {
         string = markdown_element(string);
     }
 
-    let mut vec_errs: Vec<ProcessError> = Vec::new();
+    let mut errors: Vec<ProcessError> = Vec::new();
 
     process_step(
         |srcpath, str, hist| {
@@ -43,7 +37,7 @@ pub fn page(
         src,
         &mut string,
         &hist,
-        &mut vec_errs,
+        &mut errors,
     );
     process_step(
         |srcpath, str, hist| {
@@ -52,44 +46,57 @@ pub fn page(
         src,
         &mut string,
         &hist,
-        &mut vec_errs,
+        &mut errors,
     );
     process_step(
         |srcpath, str, hist| process_template(srcpath, str, hist.clone()),
         src,
         &mut string,
         &hist,
-        &mut vec_errs,
+        &mut errors,
     );
 
     if dev {
         string = string.replace("<head>", &format!("<head>{}", SCRIPT));
     }
 
-    let mut e_i = 1;
-    for e in vec_errs {
-        cprintln!("<strong><r>Error {e_i}</></>: {e}");
-        e_i += 1;
-    }
-    Ok(string)
+    return ProcessResult {
+        output: string,
+        errors,
+    };
 }
-
 pub fn process_pages(
     dir: &PathBuf,
     src: &PathBuf,
     source: PathBuf,
     pages: PathBuf,
     dev: bool,
-) -> Result<(), ProcessError> {
-    let entries = fs::read_dir(pages).map_proc_err(WithItem::File, ErrorType::Io, src, None)?;
-    let working_dir = if dev { "dev" } else { "dist" };
+) -> Result<(), Vec<ProcessError>> {
+    let mut errors: Vec<ProcessError> = Vec::new();
 
+    let entries = match fs::read_dir(&pages) {
+        Ok(entries) => entries,
+        Err(e) => {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::File,
+                path: pages.clone(),
+                message: Some(format!("Error reading pages directory: {:?}", e)),
+            });
+            return Err(errors);
+        }
+    };
+
+    let working_dir = if dev { "dev" } else { "dist" };
     let (sender, receiver) = mpsc::channel();
+
     for entry in entries {
         if let Ok(entry) = entry {
             let path = entry.path();
             if path.is_dir() {
-                process_pages(&dir, &src, source.join(&path), path, dev)?;
+                if let Err(mut errs) = process_pages(&dir, &src, source.join(&path), path, dev) {
+                    errors.append(&mut errs);
+                }
             } else {
                 let sender = sender.clone();
                 let dir = dir.clone();
@@ -97,18 +104,15 @@ pub fn process_pages(
                 let s = working_dir.to_string();
 
                 thread::spawn(move || {
-                    let result = (|| -> Result<(), ProcessError> {
-                        let result = page(
-                            &src,
-                            fs::read_to_string(&path).map_proc_err(
-                                WithItem::File,
-                                ErrorType::Io,
-                                &path,
-                                None,
-                            )?,
-                            dev,
-                            HashSet::new(),
-                        )?;
+                    let result = (|| -> Result<(), Vec<ProcessError>> {
+                        let mut errors: Vec<ProcessError> = Vec::new();
+                        let file_content = fs::read_to_string(&path)
+                            .map_proc_err(WithItem::File, ErrorType::Io, &path, None)
+                            .inspect_err(|e| errors.push((*e).clone()))
+                            .unwrap_or(String::new());
+
+                        let result = page(&src, file_content, dev, HashSet::new());
+
                         let out_path = dir.join(&s).join(
                             path.strip_prefix(&src)
                                 .unwrap()
@@ -116,24 +120,25 @@ pub fn process_pages(
                                 .unwrap(),
                         );
 
-                        fs::create_dir_all(out_path.parent().unwrap()).map_proc_err(
-                            WithItem::File,
-                            ErrorType::Io,
-                            &out_path,
-                            None,
-                        )?;
-                        let mut f = std::fs::File::create(&out_path).map_proc_err(
-                            WithItem::File,
-                            ErrorType::Io,
-                            &out_path,
-                            None,
-                        )?;
-                        f.write_all(result.as_bytes()).map_proc_err(
-                            WithItem::File,
-                            ErrorType::Io,
-                            &out_path,
-                            None,
-                        )?;
+                        fs::create_dir_all(out_path.parent().unwrap())
+                            .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
+                            .inspect_err(|e| errors.push((*e).clone()));
+                        let f = std::fs::File::create(&out_path)
+                            .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
+                            .inspect_err(|e| errors.push((*e).clone()));
+                        match f {
+                            Ok(mut f) => {
+                                f.write_all(result.output.as_bytes())
+                                    .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
+                                    .inspect_err(|e| errors.push((*e).clone()));
+                            }
+                            Err(_) => (),
+                        }
+
+                        if !result.errors.is_empty() {
+                            return Err(result.errors);
+                        }
+
                         Ok(())
                     })();
 
@@ -145,7 +150,14 @@ pub fn process_pages(
 
     drop(sender);
     for result in receiver {
-        result?;
+        if let Err(e) = result {
+            errors.extend(e);
+        }
     }
-    Ok(())
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }

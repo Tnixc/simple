@@ -8,12 +8,12 @@ mod dev;
 mod error;
 mod new;
 mod utils;
-
 use crate::handlers::pages::process_pages;
 use color_print::{cformat, cprintln};
 use dev::spawn_watcher;
 use error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use std::{env, fs, path::PathBuf, time::Instant};
+use utils::print_vec_errs;
 
 fn main() -> () {
     let args: Vec<String> = env::args().collect();
@@ -32,9 +32,7 @@ fn main() -> () {
             spawn_watcher(args);
         }
         "build" => {
-            let _ = build(args, false).map_err(|e| {
-                eprintln!("{}", cformat!("<s><r>Build error</></>: {e}"));
-            });
+            let _ = build(args, false).map_err(|e| print_vec_errs(&e));
         }
         "new" => {
             let _ = new::new(args).map_err(|e| {
@@ -47,8 +45,9 @@ fn main() -> () {
     }
 }
 
-fn build(args: Vec<String>, dev: bool) -> Result<(), ProcessError> {
+fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
     cprintln!("<c><s>Building</></>...");
+    let mut errors: Vec<ProcessError> = Vec::new();
 
     let s = if dev { "dev" } else { "dist" };
 
@@ -65,17 +64,19 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), ProcessError> {
     let public = src.join("public");
 
     if !dir.join(s).exists() {
-        fs::create_dir(dir.join(s)).map_proc_err(
-            WithItem::File,
-            ErrorType::Io,
-            &PathBuf::from(dir.join(s)),
-            None,
-        )?;
+        fs::create_dir(dir.join(s))
+            .map_proc_err(
+                WithItem::File,
+                ErrorType::Io,
+                &PathBuf::from(dir.join(s)),
+                None,
+            )
+            .inspect_err(|e| errors.push((*e).clone()));
     }
 
     process_pages(&dir, &src, src.clone(), pages, dev)?;
 
-    utils::copy_into(&public, &dist)?;
+    utils::copy_into(&public, &dist).inspect_err(|e| errors.push((*e).clone()));
     let duration = Instant::now().duration_since(start).as_millis();
 
     cprintln!("<g><s>Done</></> in {duration} ms.");

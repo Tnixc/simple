@@ -1,5 +1,6 @@
 use crate::error::ErrorType::Io;
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
+use color_print::cformat;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
 use std::fs;
@@ -125,4 +126,25 @@ pub fn unindent(input: &str) -> String {
 pub struct ProcessResult {
     pub output: String,
     pub errors: Vec<ProcessError>,
+}
+
+pub fn print_vec_errs(errors: &Vec<ProcessError>) {
+    let mut e_i = 1;
+    for er in errors {
+        eprintln!("{}", cformat!("<s><r>Build error {e_i}</></>: {er}"));
+        e_i += 1;
+    }
+}
+
+pub fn format_errs(errors: &Vec<ProcessError>) -> String {
+    let mut e_i = 1;
+    let mut msg = String::new();
+    for er in errors {
+        msg.push_str(&format!(
+            "{}",
+            cformat!("<s><r>Build error {e_i}</></>: {er}")
+        ));
+        e_i += 1;
+    }
+    msg
 }
