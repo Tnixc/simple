@@ -10,6 +10,7 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
 - [ ] Handle port collisions in dev server
+- [ ] Minify after build with minify_html, minifiy-js, lightningcss
 
 ### Components and Templates
 - [ ] Improve Template parsing strictness
