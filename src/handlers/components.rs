@@ -31,25 +31,36 @@ pub fn get_component_self(
     component: &str,
     targets: Vec<(&str, &str)>,
     mut hist: HashSet<PathBuf>,
-) -> Result<String, ProcessError> {
+) -> ProcessResult {
+    let mut errors: Vec<ProcessError> = Vec::new();
     let path = src
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
 
-    let mut st =
-        fs::read_to_string(&path).map_proc_err(WithItem::Component, ErrorType::Io, &path, None)?;
+    let mut st = fs::read_to_string(&path)
+        .map_proc_err(WithItem::Component, ErrorType::Io, &path, None)
+        .inspect_err(|e| errors.push((*e).clone()))
+        .unwrap_or(String::new());
 
     st = kv_replace(targets, st);
     if !hist.insert(path.clone()) {
-        return Err(ProcessError {
-            error_type: ErrorType::Circular,
-            item: WithItem::Component,
-            path: PathBuf::from(path),
-            message: Some(format!("{:?}", hist)),
-        });
+        return ProcessResult {
+            output: String::new(),
+            errors: vec![ProcessError {
+                error_type: ErrorType::Circular,
+                item: WithItem::Component,
+                path: PathBuf::from(path),
+                message: Some(format!("{:?}", hist)),
+            }],
+        };
     }
-    return page(src, st, false, hist);
+    let result = page(src, st, false, hist);
+    errors.extend(result.errors);
+    return ProcessResult {
+        output: result.output,
+        errors,
+    };
 }
 
 pub fn get_component_slot(
@@ -58,23 +69,29 @@ pub fn get_component_slot(
     targets: Vec<(&str, &str)>,
     slot_content: Option<String>,
     mut hist: HashSet<PathBuf>,
-) -> Result<String, ProcessError> {
+) -> ProcessResult {
+    let mut errors: Vec<ProcessError> = Vec::new();
     let path = src
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
-    let mut st =
-        fs::read_to_string(&path).map_proc_err(WithItem::Component, ErrorType::Io, &path, None)?;
+    let mut st = fs::read_to_string(&path)
+        .map_proc_err(WithItem::Component, ErrorType::Io, &path, None)
+        .inspect_err(|e| errors.push((*e).clone()))
+        .unwrap_or(String::new());
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
-        return Err(ProcessError {
-            error_type: ErrorType::Syntax,
-            item: WithItem::Component,
-            path,
-            message: Some(String::from(
-                "The component does not contain a proper <slot></slot> tag.",
-            )),
-        });
+        return ProcessResult {
+            output: String::new(),
+            errors: vec![ProcessError {
+                error_type: ErrorType::Syntax,
+                item: WithItem::Component,
+                path,
+                message: Some(String::from(
+                    "The component does not contain a proper <slot></slot> tag.",
+                )),
+            }],
+        };
     }
 
     st = kv_replace(targets, st);
@@ -82,17 +99,24 @@ pub fn get_component_slot(
         // here it replaces "<slot>fallback</slot>" with "<slot></slot>, after the content is exists"
         st = REGEX_SLOT.replace(&st, &content).to_string();
     }
-
     if !hist.insert(path.clone()) {
-        return Err(ProcessError {
-            error_type: ErrorType::Circular,
-            item: WithItem::Component,
-            path: PathBuf::from(path),
-            message: Some(format!("{:?}", hist)),
-        });
+        return ProcessResult {
+            output: String::new(),
+            errors: vec![ProcessError {
+                error_type: ErrorType::Circular,
+                item: WithItem::Component,
+                path: PathBuf::from(path),
+                message: Some(format!("{:?}", hist)),
+            }],
+        };
     }
 
-    return page(src, st, false, hist);
+    let result = page(src, st, false, hist);
+    errors.extend(result.errors);
+    return ProcessResult {
+        output: result.output,
+        errors,
+    };
 }
 
 pub fn process_component(
@@ -125,18 +149,20 @@ pub fn process_component(
             match component_type {
                 ComponentTypes::SelfClosing => {
                     let target = found.as_str();
-                    let replacement = get_component_self(src, name, targets, hist.clone())
-                        .inspect_err(|e| errors.push((*e).clone()))
-                        .unwrap_or("".to_string());
+                    let result = get_component_self(src, name, targets, hist.clone());
+                    let replacement = result.output;
+                    errors.extend(result.errors);
+
                     output = output.replacen(target, &replacement, 1);
                 }
                 ComponentTypes::Wrapping => {
                     let end = format!("</{}>", &name);
                     let slot_content = get_inside(output.clone(), found.as_str(), &end);
-                    let replacement =
-                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone())
-                            .inspect_err(|e| errors.push((*e).clone()))
-                            .unwrap_or("".to_string());
+                    let result =
+                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone());
+                    let replacement = result.output;
+                    errors.extend(result.errors);
+
                     output =
                         output.replacen(slot_content.unwrap_or("".to_string()).as_str(), "", 1);
                     output = output.replacen(&end, "", 1);
