@@ -2,12 +2,27 @@ use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::markdown_element;
 use crate::handlers::templates::process_template;
+use crate::utils::ProcessResult;
 use color_print::cprintln;
 use std::sync::mpsc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
 
 const SCRIPT: &str = include_str!("../dev/inline_script.html");
+
+fn process_step<F>(
+    f: F,
+    src: &PathBuf,
+    string: &mut String,
+    hist: &HashSet<PathBuf>,
+    vec_errs: &mut Vec<ProcessError>,
+) where
+    F: Fn(&PathBuf, String, &HashSet<PathBuf>) -> ProcessResult,
+{
+    let result = f(src, string.clone(), hist);
+    *string = result.output;
+    vec_errs.extend(result.errors);
+}
 
 pub fn page(
     src: &PathBuf,
@@ -20,28 +35,33 @@ pub fn page(
     }
 
     let mut vec_errs: Vec<ProcessError> = Vec::new();
-    let mut er;
 
-    let result = process_component(src, string.clone(), ComponentTypes::Wrapping, hist.clone());
-    string = result.output;
-    er = result.errors;
-    vec_errs.append(&mut er);
-
-    let result = process_component(
+    process_step(
+        |srcpath, str, hist| {
+            process_component(srcpath, str, ComponentTypes::Wrapping, hist.clone())
+        },
         src,
-        string.clone(),
-        ComponentTypes::SelfClosing,
-        hist.clone(),
+        &mut string,
+        &hist,
+        &mut vec_errs,
     );
-    string = result.output;
-    er = result.errors;
-    vec_errs.append(&mut er);
+    process_step(
+        |srcpath, str, hist| {
+            process_component(srcpath, str, ComponentTypes::SelfClosing, hist.clone())
+        },
+        src,
+        &mut string,
+        &hist,
+        &mut vec_errs,
+    );
+    process_step(
+        |srcpath, str, hist| process_template(srcpath, str, hist.clone()),
+        src,
+        &mut string,
+        &hist,
+        &mut vec_errs,
+    );
 
-    let result = process_template(src, string.clone(), hist.clone());
-    string = result.output;
-    er = result.errors;
-    vec_errs.append(&mut er);
-    
     if dev {
         string = string.replace("<head>", &format!("<head>{}", SCRIPT));
     }
