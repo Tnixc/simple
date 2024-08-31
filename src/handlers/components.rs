@@ -26,6 +26,7 @@ pub enum ComponentTypes {
     SelfClosing,
     Wrapping,
 }
+
 pub fn get_component_self(
     src: &PathBuf,
     component: &str,
@@ -94,10 +95,13 @@ pub fn get_component_slot(
         };
     }
 
-    st = kv_replace(targets, st);
+    st = kv_replace(targets.clone(), st);
     if let Some(content) = slot_content {
         // here it replaces "<slot>fallback</slot>" with "<slot></slot>, after the content is exists"
-        st = REGEX_SLOT.replace(&st, &content).to_string();
+        for find in REGEX_SLOT.find_iter(&st) {
+            st = st.replace(&find.unwrap().as_str(), &content);
+            break;
+        }
     }
     if !hist.insert(path.clone()) {
         return ProcessResult {
