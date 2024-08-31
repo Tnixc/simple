@@ -149,3 +149,51 @@ pub fn format_errs(errors: &Vec<ProcessError>) -> String {
     }
     msg
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_targets_kv() {
+        let name = "component";
+        let found = r#"<component key1="value1" key2='value2'>"#;
+        let result = get_targets_kv(name, found).unwrap();
+        assert_eq!(result, vec![("key1", "value1"), ("key2", "value2")]);
+    }
+
+    #[test]
+    fn test_kv_replace() {
+        let kv = vec![("v1", "k1"), ("something", "else")];
+        let from = "Hello, ${v1}! There is no key for something else.".to_string();
+        let result = kv_replace(kv, from);
+        assert_eq!(result, "Hello, k1! There is no key for something else.");
+    }
+
+    #[test]
+    fn test_get_inside() {
+        let input = "Hello {world} how are you?".to_string();
+        let result = get_inside(input, "{", "}");
+        assert_eq!(result, Some("world".to_string()));
+    }
+
+    #[test]
+    fn test_unindent() {
+        let input = "
+            Hello
+                World
+                  How
+                Are
+            You
+            ";
+        let expected = "
+Hello
+    World
+      How
+    Are
+You
+";
+        let result = unindent(input);
+        assert_eq!(result, expected);
+    }
+}
