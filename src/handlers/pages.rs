@@ -6,7 +6,6 @@ use crate::utils::ProcessResult;
 use std::sync::mpsc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
-
 const SCRIPT: &str = include_str!("../dev/inline_script.html");
 
 fn process_step<F>(
@@ -65,6 +64,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
         errors,
     };
 }
+
 pub fn process_pages(
     dir: &PathBuf,
     src: &PathBuf,

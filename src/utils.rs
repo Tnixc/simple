@@ -12,6 +12,7 @@ lazy_static! {
     static ref KV_REGEX: Regex =
         Regex::new(KV_PATTERN).expect("Regex failed to parse, this shouldn't happen");
 }
+
 pub fn get_targets_kv<'a>(
     name: &str,
     found: &'a str,
