@@ -10,7 +10,6 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
 - [ ] Handle port collisions in dev server
-- [ ] Minify after build with minify_html, minifiy-js, lightningcss
 
 ### Components and Templates
 - [ ] Improve Template parsing strictness
@@ -26,7 +25,6 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Implement OG Image and meta generation, especially for Markdown posts
 
 ### Errors/Logging
-- [ ] Multiple errors at once
 - [ ] Exact file and line in error messages
 
 ### Perf
@@ -40,6 +38,8 @@ A simple build tool that assembles a static site from components, templates, and
 - [ ] Unit tests and end-to-end tests
 
 ### Done
+- [x] Minify after build with minify_html, minifiy-js, lightningcss
+- [x] Multiple errors at once
 - [x] Better errs with file and more specific messages
 - [x] Fix Markdown element indentation issues
 - [x] Fix errors to more accurately reflect the source of the error

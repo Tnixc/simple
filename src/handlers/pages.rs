@@ -3,7 +3,9 @@ use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::markdown_element;
 use crate::handlers::templates::process_template;
 use crate::utils::ProcessResult;
+use minify_html::minify;
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
 const SCRIPT: &str = include_str!("../dev/inline_script.html");
@@ -90,6 +92,8 @@ pub fn process_pages(
     let working_dir = if dev { "dev" } else { "dist" };
     let (sender, receiver) = mpsc::channel();
 
+    let minify_cfg = Arc::new(minify_html::Cfg::spec_compliant());
+
     for entry in entries {
         if let Ok(entry) = entry {
             let path = entry.path();
@@ -102,6 +106,8 @@ pub fn process_pages(
                 let dir = dir.clone();
                 let src = src.clone();
                 let s = working_dir.to_string();
+
+                let minify_cfg = Arc::clone(&minify_cfg);
 
                 thread::spawn(move || {
                     let result = (|| -> Result<(), Vec<ProcessError>> {
@@ -128,8 +134,15 @@ pub fn process_pages(
                             .inspect_err(|e| errors.push((*e).clone()));
                         match f {
                             Ok(mut f) => {
+                                let mut w = result.output.as_bytes();
+                                let to_write = if !dev {
+                                    let s = minify(&mut w, &minify_cfg);
+                                    s
+                                } else {
+                                    w.to_vec()
+                                };
                                 let _ = f
-                                    .write_all(result.output.as_bytes())
+                                    .write_all(to_write.as_slice())
                                     .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
                                     .inspect_err(|e| errors.push((*e).clone()));
                             }
