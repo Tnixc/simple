@@ -32,6 +32,7 @@ pub fn get_component_self(
     component: &str,
     targets: Vec<(&str, &str)>,
     mut hist: HashSet<PathBuf>,
+    dev: bool,
 ) -> ProcessResult {
     let mut errors: Vec<ProcessError> = Vec::new();
     let path = src
@@ -56,7 +57,7 @@ pub fn get_component_self(
             }],
         };
     }
-    let result = page(src, st, false, hist);
+    let result = page(src, st, dev, hist);
     errors.extend(result.errors);
     return ProcessResult {
         output: result.output,
@@ -70,6 +71,7 @@ pub fn get_component_slot(
     targets: Vec<(&str, &str)>,
     slot_content: Option<String>,
     mut hist: HashSet<PathBuf>,
+    dev: bool,
 ) -> ProcessResult {
     let mut errors: Vec<ProcessError> = Vec::new();
     let path = src
@@ -115,7 +117,7 @@ pub fn get_component_slot(
         };
     }
 
-    let result = page(src, st, false, hist);
+    let result = page(src, st, dev, hist);
     errors.extend(result.errors);
     return ProcessResult {
         output: result.output,
@@ -128,6 +130,7 @@ pub fn process_component(
     input: String,
     component_type: ComponentTypes,
     hist: HashSet<PathBuf>,
+    dev: bool,
 ) -> ProcessResult {
     let regex = match component_type {
         ComponentTypes::SelfClosing => &*REGEX_SELF_CLOSING,
@@ -153,7 +156,7 @@ pub fn process_component(
             match component_type {
                 ComponentTypes::SelfClosing => {
                     let target = found.as_str();
-                    let result = get_component_self(src, name, targets, hist.clone());
+                    let result = get_component_self(src, name, targets, hist.clone(), dev);
                     let replacement = result.output;
                     errors.extend(result.errors);
 
@@ -162,8 +165,14 @@ pub fn process_component(
                 ComponentTypes::Wrapping => {
                     let end = format!("</{}>", &name);
                     let slot_content = get_inside(output.clone(), found.as_str(), &end);
-                    let result =
-                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone());
+                    let result = get_component_slot(
+                        src,
+                        name,
+                        targets,
+                        slot_content.clone(),
+                        hist.clone(),
+                        dev,
+                    );
                     let replacement = result.output;
                     errors.extend(result.errors);
 

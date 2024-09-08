@@ -33,7 +33,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
 
     process_step(
         |srcpath, str, hist| {
-            process_component(srcpath, str, ComponentTypes::Wrapping, hist.clone())
+            process_component(srcpath, str, ComponentTypes::Wrapping, hist.clone(), dev)
         },
         src,
         &mut string,
@@ -42,7 +42,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
     );
     process_step(
         |srcpath, str, hist| {
-            process_component(srcpath, str, ComponentTypes::SelfClosing, hist.clone())
+            process_component(srcpath, str, ComponentTypes::SelfClosing, hist.clone(), dev)
         },
         src,
         &mut string,
@@ -57,7 +57,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
         &mut errors,
     );
 
-    if dev {
+    if dev && !string.contains("// * SCRIPT INCLUDED IN DEV MODE"){
         string = string.replace("<head>", &format!("<head>{}", SCRIPT));
     }
 

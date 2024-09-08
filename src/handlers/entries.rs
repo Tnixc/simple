@@ -35,13 +35,7 @@ pub fn process_entry(
     let result_path = src
         .parent()
         .unwrap()
-        .join({
-            if dev {
-                "dev"
-            } else {
-                "dist"
-            }
-        })
+        .join(if dev { "dev" } else { "dist" })
         .join(result_path.trim_start_matches("/"));
 
     let frame_content = match fs::read_to_string(&frame_path) {
@@ -79,8 +73,8 @@ pub fn process_entry(
         frame_content.replace("${--content}", &content)
     };
     let final_content = kv_replace(kv, processed_content);
-    
-    let page_result = page(src, final_content, false, HashSet::new());
+
+    let page_result = page(src, final_content, dev, HashSet::new());
 
     errors.extend(page_result.errors);
 
@@ -97,7 +91,11 @@ pub fn process_entry(
 
     let mut output: Vec<u8>;
     if dev {
-        if page_result.output.contains("</head>") {
+        if page_result.output.contains("</head>")
+            && !page_result
+                .output
+                .contains("// * SCRIPT INCLUDED IN DEV MODE")
+        {
             let modified_output = page_result.output.replace(
                 "</head>",
                 &format!("<script src=\"{}\"></script></head>", SCRIPT),
