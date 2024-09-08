@@ -15,7 +15,7 @@ lazy_static! {
 
 /// Gets the key-value pairs from an html element
 /// Example:
-/// ```html 
+/// ```html
 /// <component key1="value1" key2='value2'>
 /// ```
 /// Has the following key-value pairs:
