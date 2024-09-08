@@ -1,9 +1,9 @@
 mod handlers {
     pub mod components;
+    pub mod entries;
     pub mod markdown;
     pub mod pages;
     pub mod templates;
-    pub mod entries;
 }
 mod dev;
 mod error;
@@ -50,7 +50,6 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
     cprintln!("<c><s>Building</></>...");
     let mut errors: Vec<ProcessError> = Vec::new();
 
-    let s = if dev { "dev" } else { "dist" };
 
     let start = Instant::now();
     if args.len() < 3 {
@@ -59,17 +58,19 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
     let dir = PathBuf::from(&args[2]);
 
     let src = dir.join("src");
-    let dist = dir.join(s);
+
+    let working_dir = if dev { "dev" } else { "dist" };
+    let dist = dir.join(working_dir);
 
     let pages = src.join("pages");
     let public = src.join("public");
 
-    if !dir.join(s).exists() {
-        let _ = fs::create_dir(dir.join(s))
+    if !dir.join(working_dir).exists() {
+        let _ = fs::create_dir(dir.join(working_dir))
             .map_proc_err(
                 WithItem::File,
                 ErrorType::Io,
-                &PathBuf::from(dir.join(s)),
+                &PathBuf::from(dir.join(working_dir)),
                 None,
             )
             .inspect_err(|e| errors.push((*e).clone()));

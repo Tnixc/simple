@@ -116,7 +116,7 @@ pub fn get_template(
         };
     }
 
-    let page_res = page(src, contents, false, hist);
+    let page_res = page(src, contents, dev, hist);
     errors.extend(page_res.errors);
     return ProcessResult {
         output: page_res.output,
