@@ -13,6 +13,13 @@ lazy_static! {
         Regex::new(KV_PATTERN).expect("Regex failed to parse, this shouldn't happen");
 }
 
+/// Gets the key-value pairs from an html element
+/// Example:
+/// ```html 
+/// <component key1="value1" key2='value2'>
+/// ```
+/// Has the following key-value pairs:
+/// `[("key1", "value1"), ("key2", "value2")]`
 pub fn get_targets_kv<'a>(
     name: &str,
     found: &'a str,
@@ -49,6 +56,7 @@ pub fn get_targets_kv<'a>(
     Ok(targets)
 }
 
+/// Replaces keys with values in a string
 pub fn kv_replace(kv: Vec<(&str, &str)>, mut from: String) -> String {
     for (k, v) in kv {
         let key = format!("${{{k}}}");
@@ -57,6 +65,7 @@ pub fn kv_replace(kv: Vec<(&str, &str)>, mut from: String) -> String {
     from
 }
 
+/// Gets the content between two strings
 pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
     let start_index = input.find(from)?;
     let start_pos = start_index + from.len();

@@ -175,6 +175,31 @@ Will render out to:
 <img src="image.webp" alt="alt" />
 ```
 
+### Template entries
+
+You can also use the template syntax to render entries from files.
+
+Take this `src/data/Posts.data.json`:
+
+```json
+[
+    {
+        "link": "./content/simple.html",
+        "date": "dd/mm/yyyy",
+        "--entry-path": "content/simple.md"
+        "--result-path": "content/simple.html"
+    },
+    {...}
+]
+```
+
+If the key `--entry-path` or `--result-path` is present, the program will look for the file `src/templates/Posts.frame.html` and render the entry using that frame file. Inside that frame file, the string `${--content}` will be inlined as rendered markdown if the `--entry-path` is a markdown file, or the file contents if it is not a markdown file.  
+Note that the key-value pairs in the object will work on both the rendered entry file AND the template file.
+The idea is that you can use one template for both the table of contents and the individual pages.
+The keys starting with `--` are special. The `entry-path` key is the path to the file to be rendered, the base path is `src/data`. The `result-path` is the path to the file to be written to.
+
+**If either of these keys are present, the other one must also be present.**
+
 ### Syntax highlighting
 
 Syntax highlighting is supported. It outputs to codeblocks with the syntect highlighting classes. There's tools to convert .tmTheme(textmate theme) files into the css. I made a [website](https://tm-theme2css.vercel.app/) for that.

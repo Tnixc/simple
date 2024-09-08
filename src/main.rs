@@ -32,10 +32,10 @@ fn main() -> () {
             spawn_watcher(args);
         }
         "build" => {
-            let _ = build(args, false).map_err(|e| print_vec_errs(&e));
+            let _ = build(args, false).inspect_err(|e| print_vec_errs(&e));
         }
         "new" => {
-            let _ = new::new(args).map_err(|e| {
+            let _ = new::new(args).inspect_err(|e| {
                 eprintln!("{}", cformat!("<s><r>Scaffold error</></>: {e}"));
             });
         }

@@ -16,6 +16,8 @@ use std::thread;
 use std::time::Duration;
 use WithItem::None;
 
+pub const SCRIPT: &str = include_str!("../dev/inline_script.html");
+
 fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<ProcessError>> {
     let args: Vec<String> = env::args().collect();
     match res {

@@ -1,6 +1,6 @@
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
-use crate::handlers::markdown::markdown_element;
+use crate::handlers::markdown::render_markdown;
 use crate::handlers::templates::process_template;
 use crate::utils::ProcessResult;
 use minify_html::minify;
@@ -8,10 +8,10 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
-const SCRIPT: &str = include_str!("../dev/inline_script.html");
+use crate::dev::SCRIPT;
 
 fn process_step<F>(
-    f: F,
+    func: F,
     src: &PathBuf,
     string: &mut String,
     hist: &HashSet<PathBuf>,
@@ -19,14 +19,14 @@ fn process_step<F>(
 ) where
     F: Fn(&PathBuf, String, &HashSet<PathBuf>) -> ProcessResult,
 {
-    let result = f(src, string.clone(), hist);
+    let result = func(src, string.to_string(), hist);
     *string = result.output;
     vec_errs.extend(result.errors);
 }
 
 pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>) -> ProcessResult {
     if string.contains("</markdown>") {
-        string = markdown_element(string);
+        string = render_markdown(string);
     }
 
     let mut errors: Vec<ProcessError> = Vec::new();
@@ -50,7 +50,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
         &mut errors,
     );
     process_step(
-        |srcpath, str, hist| process_template(srcpath, str, hist.clone()),
+        |srcpath, str, hist| process_template(srcpath, str, hist.clone(), dev),
         src,
         &mut string,
         &hist,

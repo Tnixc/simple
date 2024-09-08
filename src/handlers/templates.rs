@@ -1,8 +1,11 @@
+use crate::dev::SCRIPT;
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::pages::page;
+use crate::utils::kv_replace;
 use crate::utils::ProcessResult;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
+use minify_html::minify;
 use serde_json::Value;
 use std::{collections::HashSet, fs, path::PathBuf, str};
 
@@ -14,7 +17,138 @@ lazy_static! {
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
 }
 
-pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> ProcessResult {
+pub fn process_entry(
+    src: &PathBuf,
+    name: &str,
+    entry_path: String,
+    result_path: String,
+    kv: Vec<(String, String)>,
+    hist: HashSet<PathBuf>,
+    dev: bool,
+) -> Vec<ProcessError> {
+    let mut errors: Vec<ProcessError> = Vec::new();
+
+    if entry_path.is_empty() || result_path.is_empty() {
+        return vec![ProcessError {
+            error_type: ErrorType::Other,
+            item: WithItem::Template,
+            path: PathBuf::from(result_path),
+            message: Some(
+                format!("Error occurred in {name}. The --entry-path and --result-path keys must both be present if either is present.")
+            ),
+        }];
+    }
+
+    let entry_path = src.join("data").join(entry_path.trim_start_matches("/"));
+    let frame_path = src
+        .join("templates")
+        .join(name.replace(":", "/"))
+        .with_extension("frame.html");
+    let result_path = src
+        .parent()
+        .unwrap()
+        .join({
+            if dev {
+                "dev"
+            } else {
+                "dist"
+            }
+        })
+        .join(result_path.trim_start_matches("/"));
+
+    let frame_content = match fs::read_to_string(&frame_path) {
+        Ok(content) => content,
+        Err(e) => {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::Data,
+                path: frame_path.clone(),
+                message: Some(format!("Failed to read frame file: {}", e)),
+            });
+            return errors;
+        }
+    };
+
+    let content = match fs::read_to_string(&entry_path) {
+        Ok(content) => content,
+        Err(e) => {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::Data,
+                path: entry_path.clone(),
+                message: Some(format!("Failed to read data file: {}", e)),
+            });
+            return errors;
+        }
+    };
+
+    let processed_content = if entry_path.extension().and_then(|s| s.to_str()) == Some("md") {
+        frame_content.replace(
+            "${--content}",
+            &("<markdown>".to_owned() + &content + "</markdown>"),
+        )
+    } else {
+        frame_content.replace("${--content}", &content)
+    };
+
+    let final_content = kv_replace(
+        kv.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect(),
+        processed_content,
+    );
+
+    let page_result = page(src, final_content, false, hist);
+
+    if let Some(parent) = result_path.parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::File,
+                path: parent.to_path_buf(),
+                message: Some(format!("Failed to create directory structure: {}", e)),
+            });
+            return errors;
+        }
+    }
+
+    let mut output: Vec<u8>;
+    if dev {
+        if page_result.output.contains("</head>") {
+            let modified_output = page_result.output.replace(
+                "</head>",
+                &format!("<script src=\"{}\"></script></head>", SCRIPT),
+            );
+            output = modified_output.into_bytes();
+        } else {
+            let modified_output = format!("<head>{}</head>{}", SCRIPT, page_result.output);
+            output = modified_output.into_bytes();
+        }
+    } else {
+        output = page_result.output.into_bytes();
+        output = minify(&output, &minify_html::Cfg::spec_compliant());
+    }
+
+    match fs::write(&result_path, &output) {
+        Ok(_) => (),
+        Err(e) => {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::File,
+                path: result_path.clone(),
+                message: Some(format!("Failed to write result file: {}", e)),
+            });
+        }
+    }
+
+    errors.extend(page_result.errors);
+    errors
+}
+
+pub fn get_template(
+    src: &PathBuf,
+    name: &str,
+    mut hist: HashSet<PathBuf>,
+    dev: bool,
+) -> ProcessResult {
     let mut errors: Vec<ProcessError> = Vec::new();
     let template_path = src
         .join("templates")
@@ -52,17 +186,56 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
     let mut contents = String::new();
     for object in items {
         let mut this = template.clone();
+        let mut entry_path = String::new();
+        let mut result_path = String::new();
+        let mut is_entry = false;
+        let mut kv: Vec<(String, String)> = Vec::new();
         for (key, value) in object.as_object().expect("Invalid object in JSON") {
+            match key.as_str() {
+                "--entry-path" => {
+                    entry_path = value
+                        .as_str()
+                        .expect("JSON object value couldn't be decoded to string")
+                        .to_string();
+                    is_entry = true;
+                }
+                "--result-path" => {
+                    result_path = value
+                        .as_str()
+                        .expect("JSON object value couldn't be decoded to string")
+                        .to_string();
+                    is_entry = true;
+                }
+                _ => {}
+            }
             let key = format!("${{{key}}}");
-            this = this.replace(
-                key.as_str(),
-                value
-                    .as_str()
-                    .expect("JSON object value couldn't be decoded to string"),
-            );
+            let val = value
+                .as_str()
+                .expect("JSON object value couldn't be decoded to string")
+                .to_string();
+            kv.push((key, val));
         }
+
+        for (key, value) in kv.iter() {
+            this = this.replace(key, value);
+        }
+
         contents.push_str(&this);
+
+        if is_entry {
+            let entry_errs = process_entry(
+                src,
+                name,
+                entry_path.to_string(),
+                result_path.to_string(),
+                kv,
+                hist.clone(),
+                dev,
+            );
+            errors.extend(entry_errs);
+        }
     }
+
     if !hist.insert(template_path.clone()) {
         return ProcessResult {
             output: String::new(),
@@ -77,7 +250,12 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
     return page(src, contents, false, hist);
 }
 
-pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) -> ProcessResult {
+pub fn process_template(
+    src: &PathBuf,
+    input: String,
+    hist: HashSet<PathBuf>,
+    dev: bool,
+) -> ProcessResult {
     let mut errors = Vec::new();
     let mut replacements = Vec::new();
 
@@ -92,7 +270,7 @@ pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) ->
                 .trim()
                 .trim_end_matches("}");
 
-            let result = get_template(src, template_name, hist.clone());
+            let result = get_template(src, template_name, hist.clone(), dev);
             let replacement = result.output;
             errors.extend(result.errors);
             replacements.push((found.as_str().to_string(), replacement));
@@ -103,6 +281,5 @@ pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) ->
         output = output.replacen(&old, &new, 1);
     }
 
-    // Ok(output)
     return ProcessResult { output, errors };
 }
