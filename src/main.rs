@@ -50,7 +50,6 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
     cprintln!("<c><s>Building</></>...");
     let mut errors: Vec<ProcessError> = Vec::new();
 
-
     let start = Instant::now();
     if args.len() < 3 {
         return Ok(());

@@ -57,7 +57,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
         &mut errors,
     );
 
-    if dev && !string.contains("// * SCRIPT INCLUDED IN DEV MODE"){
+    if dev && !string.contains("// * SCRIPT INCLUDED IN DEV MODE") {
         string = string.replace("<head>", &format!("<head>{}", SCRIPT));
     }
 
