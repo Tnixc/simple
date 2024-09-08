@@ -225,8 +225,8 @@ can use one template for both the table of contents and the individual pages.
 ### Syntax highlighting
 
 Syntax highlighting is supported. It outputs to codeblocks with the syntect
-highlighting classes. There's tools to convert .tmTheme(textmate theme) files
-into the css. I made a [web app](https://tm-theme2css.vercel.app/) for that.
+highlighting classes. There's tools to convert vscode themes to .tmTheme(textmate theme) files
+into the css. I made a [web app](https://tm-theme2css.vercel.app/) for the process.
 
 ## Naming
 
