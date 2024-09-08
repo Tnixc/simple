@@ -1,43 +1,54 @@
 # Simple Build tool
 
-A simple build tool that assembles a static site from components, templates, and data. I used it to build v6 of https://tnixc.space
+A simple build tool that assembles a static site from components, templates, and
+data. I used it to build v6 of https://tnixc.space
 
 ## Todo List
 
 ### Core
+
 - [ ] LSP (and check command)
-- [ ] Implement proper Markdown rendering from .md files
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
 - [ ] Handle port collisions in dev server
 
 ### Components and Templates
+
 - [ ] Improve Template parsing strictness
 - [ ] Implement type safety-ish warnings for template-data mismatches
 - [ ] Add CSS scoping in components (waiting for @scope general support)
 - [ ] Provide warnings for unused and unfound components
 
 ### Data
-- [ ] Resolve dual sources of truth for Markdown frontmatter in blog posts (can't fix without proper Markdown parsing into entries)
+
+- [ ] Resolve dual sources of truth for Markdown frontmatter in blog posts
+      (can't fix without proper Markdown parsing into entries)
 - [ ] Improve JSON parsing error handling
 
 ### Markdown and Content
+
 - [ ] Implement OG Image and meta generation, especially for Markdown posts
 
 ### Errors/Logging
+
 - [ ] Exact file and line in error messages
 
 ### Perf
+
 - [ ] Implement selective component caching to reduce disk reads
 - [ ] Conduct and analyze more extensive speed tests
 
 ### Syntax/Parsing
+
 - [ ] Improve escaping for special characters ({}, "", etc.) (needed?)
 
 ### Testing
+
 - [ ] Unit tests and end-to-end tests
 
 ### Done
+
+- [x] Implement proper Markdown rendering from .md files -> template entries
 - [x] Minify after build with minify_html, minifiy-js, lightningcss
 - [x] Multiple errors at once
 - [x] Better errs with file and more specific messages
@@ -56,8 +67,6 @@ A simple build tool that assembles a static site from components, templates, and
 - [x] Implement templating system
 - [x] Implement component system
 - [x] Set up file copying from /public to /dist
-
-
 
 # Documentation
 
@@ -87,7 +96,8 @@ src
     └── Projects.template.html
 ```
 
-To use the above, you would run the following command, where target contains a folder `src`.
+To use the above, you would run the following command, where target contains a
+folder `src`.
 
 ```
 simple <build|dev|new> /path/to/target
@@ -104,7 +114,9 @@ To use components in markup, do the following:
 <!-- for a component which contains a <slot></slot> -->
 ```
 
-If no content inside a slot component is provided, it will use the fallbacks inside the `<slot>` tags. To access components in folders, use `:`s to separate them like so:
+If no content inside a slot component is provided, it will use the fallbacks
+inside the `<slot>` tags. To access components in folders, use a `:` to separate
+them like so:
 
 ```html
 <Folder:Component />
@@ -127,16 +139,18 @@ Which will be accessible in the component as `${prop}`.
 <-Template{Name} />
 ```
 
-Think of this like a `for each`, where `Name` will be used to search for `src/data/Name.data.json` to populate instances of `src/templates/Name.template.html`
+Think of this like a `for each`, where `Name` will be used to search for
+`src/data/Name.data.json` to populate instances of
+`src/templates/Name.template.html`
 
 Below is an example of a template file:
 
 ```html
 <!-- Posts.template.json -->
 <a class="bg-neutral-400/20 p-4 block post relative group" href="${link}">
-	<h1 class="font-grotesk text-2xl">${title}</h1>
-	<p class="text-neutral-700 pt-1">Published ${date}</p>
-	<p class="text-neutral-700 pt-3">${description}</p>
+  <h1 class="font-grotesk text-2xl">${title}</h1>
+  <p class="text-neutral-700 pt-1">Published ${date}</p>
+  <p class="text-neutral-700 pt-3">${description}</p>
 </a>
 ```
 
@@ -154,7 +168,8 @@ Note the `${}` items. They will match with the following in `Posts.data.json`
 ]
 ```
 
-The `data.json` file must contain an array of objects with the keys for the template.
+The `data.json` file must contain an array of objects with the keys for the
+template.
 
 ## The `<markdown>` component
 
@@ -162,9 +177,9 @@ There's also a `<markdown>` component:
 
 ```html
 <markdown>
-	# Hello world
+  # Hello world
 
-	<img src="image.webp" alt="alt" />
+  <img src="image.webp" alt="alt" />
 </markdown>
 ```
 
@@ -193,18 +208,27 @@ Take this `src/data/Posts.data.json`:
 ]
 ```
 
-The keys starting with `--` are special. The `entry-path` key is the path to the file to be rendered, the base path is `src/data`. The `result-path` is the path to the file to be written to.
+The keys starting with `--` are special. The `entry-path` key is the path to the
+file to be rendered, the base path is `src/data`. The `result-path` is the path
+to the file to be written to.
 
-If the key `--entry-path` or `--result-path` is present, the program will look for the file `src/templates/Posts.frame.html` and render the entry using that frame file. Inside that frame file, the string `${--content}` will be inlined as rendered markdown if the `--entry-path` is a markdown file, or the file contents if it is not a markdown file. Note that the key-value pairs in the object will work on both the rendered entry file AND the template file. The idea is that you can use one template for both the table of contents and the individual pages.
+If the key `--entry-path` or `--result-path` is present, the program will look
+for the file `src/templates/Posts.frame.html` and render the entry using that
+frame file. Inside that frame file, the string `${--content}` will be inlined as
+rendered markdown if the `--entry-path` is a markdown file, or the file contents
+if it is not a markdown file. Note that the key-value pairs in the object will
+work on both the rendered entry file AND the template file. The idea is that you
+can use one template for both the table of contents and the individual pages.
 
 **If either of these keys are present, the other one must also be present.**
 
 ### Syntax highlighting
 
-Syntax highlighting is supported. It outputs to codeblocks with the syntect highlighting classes. There's tools to convert .tmTheme(textmate theme) files into the css. I made a [web app](https://tm-theme2css.vercel.app/) for that.
+Syntax highlighting is supported. It outputs to codeblocks with the syntect
+highlighting classes. There's tools to convert .tmTheme(textmate theme) files
+into the css. I made a [web app](https://tm-theme2css.vercel.app/) for that.
 
 ## Naming
 
-Components, templates, and data must following `CamalCase`, not contain spaces, and cannot start with a number. They can contain underscores.
-
-
+Components, templates, and data must following `CamalCase`, not contain spaces,
+and cannot start with a number. They can contain underscores.
