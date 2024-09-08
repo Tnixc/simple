@@ -3,6 +3,7 @@ mod handlers {
     pub mod markdown;
     pub mod pages;
     pub mod templates;
+    pub mod entries;
 }
 mod dev;
 mod error;
