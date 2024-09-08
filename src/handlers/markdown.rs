@@ -13,7 +13,7 @@ lazy_static! {
     static ref MARKDOWN_REGEX: Regex = Regex::new(MARKDOWN_ELEMENT_PATTERN)
         .expect("Regex failed to parse. This shouldn't happen.");
 }
-pub fn markdown_element(mut string: String) -> String {
+pub fn render_markdown(mut string: String) -> String {
     let codefence_syntax_highlighter = SyntectAdapterBuilder::new().css();
     let mut plugins = Plugins::default();
     let mut options = Options::default();

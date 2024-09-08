@@ -2029,7 +2029,7 @@ checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
 
 [[package]]
 name = "simple"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "color-print",
  "comrak",
