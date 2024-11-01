@@ -7,7 +7,8 @@ data. I used it to build v6 of https://tnixc.space
 
 ### Core
 
-- [ ] LSP (and check command)
+- [ ] Proper error handling (no unwraps please)
+
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
 - [ ] Handle port collisions in dev server
@@ -42,12 +43,9 @@ data. I used it to build v6 of https://tnixc.space
 
 - [ ] Improve escaping for special characters ({}, "", etc.) (needed?)
 
-### Testing
-
-- [ ] Unit tests and end-to-end tests
-
 ### Done
 
+- [x] Bi-directional editing: You can now double click on a rendered `<markdown>` element to edit it, and it's reflected in the source code.
 - [x] Implement proper Markdown rendering from .md files -> template entries
 - [x] Minify after build with minify_html, minifiy-js, lightningcss
 - [x] Multiple errors at once
