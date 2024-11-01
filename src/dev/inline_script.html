@@ -10,14 +10,18 @@
     }
   };
   class MarkdownEditor {
-      constructor(element, content) {
+      constructor(element) {
           this.element = element;
-          this.originalContent = content;
+          // Get the raw markdown from the data attribute we'll set during rendering
+          this.originalContent = element.getAttribute('data-markdown-source');
+          console.log('Initializing editor with content:', this.originalContent);
           this.setupEditor();
       }
 
       setupEditor() {
           this.element.addEventListener('dblclick', () => {
+              console.log('Opening editor with content:', this.originalContent);
+
               // Create modal with editor
               const modal = document.createElement('div');
               modal.style.cssText = `
@@ -65,13 +69,16 @@
               const saveButton = document.createElement('button');
               saveButton.textContent = 'Save';
               saveButton.onclick = () => {
-                  socket.onopen = () => {
-                      socket.send(JSON.stringify({
-                          type: 'markdown_update',
-                          content: textarea.value,
-                          originalContent: this.originalContent
-                      }));
-                  };
+                  console.log('Sending update:', {
+                      type: 'markdown_update',
+                      content: textarea.value,
+                      originalContent: this.originalContent
+                  });
+                  socket.send(JSON.stringify({
+                      type: 'markdown_update',
+                      content: textarea.value,
+                      originalContent: this.originalContent
+                  }));
                   modal.remove();
               };
 
@@ -88,4 +95,13 @@
           });
       }
   }
+
+  // Initialize markdown editors after page load
+  document.addEventListener('DOMContentLoaded', () => {
+      const markdownElements = document.querySelectorAll('div[data-markdown-source]');
+      console.log('Found markdown elements:', markdownElements.length);
+      markdownElements.forEach(element => {
+          new MarkdownEditor(element);
+      });
+  });
 </script>

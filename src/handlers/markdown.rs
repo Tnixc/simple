@@ -13,6 +13,7 @@ lazy_static! {
     static ref MARKDOWN_REGEX: Regex = Regex::new(MARKDOWN_ELEMENT_PATTERN)
         .expect("Regex failed to parse. This shouldn't happen.");
 }
+
 pub fn render_markdown(mut string: String) -> String {
     let codefence_syntax_highlighter = SyntectAdapterBuilder::new().css();
     let mut plugins = Plugins::default();
@@ -37,7 +38,12 @@ pub fn render_markdown(mut string: String) -> String {
                 .trim_start_matches("<markdown>")
                 .trim_end_matches("</markdown>");
             let content = utils::unindent(res);
-            let rendered = "<div style='display: contents;'>".to_owned() + &markdown_to_html_with_plugins(&content, &options, &plugins) + "</div>";
+            // Store the original markdown in a data attribute
+            let rendered = format!(
+                r#"<div style='display: contents;' data-markdown-source="{}">{}</div>"#,
+                content.replace("\"", "&quot;").trim(),
+                markdown_to_html_with_plugins(&content, &options, &plugins)
+            );
             string = string.replacen(found, &rendered, 1);
         }
     }
