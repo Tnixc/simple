@@ -16,13 +16,19 @@ use std::thread;
 use std::time::Duration;
 use WithItem::None;
 
-fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<ProcessError>> {
+#[derive(Debug, Copy, Clone)]
+pub enum DevInfo {
+    False,
+    WsPort(u16),
+}
+
+fn dev_rebuild(res: Result<notify::Event, notify::Error>, dev_info: DevInfo) -> Result<(), Vec<ProcessError>> {
     let args: Vec<String> = env::args().collect();
     match res {
         Ok(s) => {
             println!("");
             cprintln!("<m><s>Modified: </></>{:?}", s.paths);
-            let result = build(args.clone(), true);
+            let result = build(args.clone(), dev_info);
             return result;
         }
         Err(e) => {
@@ -125,7 +131,9 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     let websocket_src = src.clone();
     thread::spawn(move || spawn_websocket_handler(receiver, websocket_src, websocket_port));
 
-    let _ = build(args.clone(), true).map_err(|e| {
+    let dev_info = DevInfo::WsPort(websocket_port);
+
+    let _ = build(args.clone(), dev_info).map_err(|e| {
         utils::print_vec_errs(&e);
     });
 
@@ -135,7 +143,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
 
     let mut watcher = notify::PollWatcher::new(
         move |res| {
-            let result = dev_rebuild(res);
+            let result = dev_rebuild(res, dev_info);
             if result.is_ok() {
                 let send = sender.send("reload".to_string());
                 if send.is_err() {
