@@ -194,7 +194,7 @@ pub fn find_next_available_port(start_port: u16) -> u16 {
 }
 
 fn is_port_available(port: u16) -> bool {
-    TcpListener::bind(("127.0.0.1", port)).is_ok()
+    TcpListener::bind(("0.0.0.0", port)).is_ok()
 }
 
 #[cfg(test)]
