@@ -10,98 +10,106 @@
     }
   };
   class MarkdownEditor {
-      constructor(element) {
-          this.element = element;
-          // Get the raw markdown from the data attribute we'll set during rendering
-          this.originalContent = element.getAttribute('data-markdown-source');
-          console.log('Initializing editor with content:', this.originalContent);
-          this.setupEditor();
-      }
+    constructor(element) {
+      this.element = element;
+      this.originalContent = element.getAttribute("data-markdown-source");
+      console.log("Initializing editor with content:", this.originalContent);
+      this.setupEditor();
+    }
 
-      setupEditor() {
-          this.element.addEventListener('dblclick', () => {
-              console.log('Opening editor with content:', this.originalContent);
+    setupEditor() {
+      this.element.addEventListener("dblclick", () => {
+        console.log("Opening editor with content:", this.originalContent);
 
-              // Create modal with editor
-              const modal = document.createElement('div');
-              modal.style.cssText = `
-                  position: fixed;
-                  top: 0;
-                  left: 0;
-                  width: 100%;
-                  height: 100%;
-                  background: rgba(0,0,0,0.7);
-                  display: flex;
-                  justify-content: center;
-                  align-items: center;
-                  z-index: 1000;
-              `;
+        // Create modal with editor
+        const modal = document.createElement("div");
+        modal.style.cssText = `
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: rgba(0,0,0,0.7);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 1000;
+                            `;
 
-              const editor = document.createElement('div');
-              editor.style.cssText = `
-                  width: 80%;
-                  height: 80%;
-                  background: white;
-                  padding: 20px;
-                  border-radius: 8px;
-                  display: flex;
-                  flex-direction: column;
-              `;
+        const editor = document.createElement("div");
+        editor.style.cssText = `
+                            width: min(1200px, 90vw);
+                            height: calc(100vh - 100px);
+                            background: #100F0F;
+                            color: #CECDC3;
+                            padding: 20px;
+                            border-radius: 8px;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 20px;
+                            `;
 
-              const textarea = document.createElement('textarea');
-              textarea.style.cssText = `
-                  width: 100%;
-                  height: calc(100% - 50px);
-                  font-family: monospace;
-                  padding: 10px;
-                  resize: none;
-              `;
-              textarea.value = this.originalContent;
+        const textarea = document.createElement("textarea");
+        textarea.style.cssText = `
+                                flex: 1;
+                                font-family: monospace;
+                                background: #1C1B1B;
+                                color: #CECDC3;
+                                padding: 10px;
+                                border: none !important;
+                                outline: none !important;
+                                resize: none;
+                                `;
+        textarea.value = this.originalContent;
 
-              const buttonContainer = document.createElement('div');
-              buttonContainer.style.cssText = `
-                  display: flex;
-                  gap: 10px;
-                  margin-top: auto;
-                  justify-content: flex-end;
-              `;
+        const buttonContainer = document.createElement("div");
+        buttonContainer.style.cssText = `
+                                        display: flex;
+                                        gap: 10px;
+                                        justify-content: flex-end;
+                                        `;
 
-              const saveButton = document.createElement('button');
-              saveButton.textContent = 'Save';
-              saveButton.onclick = () => {
-                  console.log('Sending update:', {
-                      type: 'markdown_update',
-                      content: textarea.value,
-                      originalContent: this.originalContent
-                  });
-                  socket.send(JSON.stringify({
-                      type: 'markdown_update',
-                      content: textarea.value,
-                      originalContent: this.originalContent
-                  }));
-                  modal.remove();
-              };
-
-              const cancelButton = document.createElement('button');
-              cancelButton.textContent = 'Cancel';
-              cancelButton.onclick = () => modal.remove();
-
-              buttonContainer.appendChild(cancelButton);
-              buttonContainer.appendChild(saveButton);
-              editor.appendChild(textarea);
-              editor.appendChild(buttonContainer);
-              modal.appendChild(editor);
-              document.body.appendChild(modal);
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "Save";
+        saveButton.onclick = () => {
+          console.log("Sending update:", {
+            type: "markdown_update",
+            content: textarea.value,
+            originalContent: this.originalContent,
           });
-      }
+          socket.send(
+            JSON.stringify({
+              type: "markdown_update",
+              content: textarea.value,
+              originalContent: this.originalContent,
+            }),
+          );
+          modal.remove();
+        };
+
+        const cancelButton = document.createElement("button");
+        cancelButton.textContent = "Cancel";
+        cancelButton.onclick = () => modal.remove();
+
+        buttonContainer.appendChild(cancelButton);
+        buttonContainer.appendChild(saveButton);
+        editor.appendChild(textarea);
+        editor.appendChild(buttonContainer);
+        modal.appendChild(editor);
+        document.body.appendChild(modal);
+      });
+    }
   }
 
   // Initialize markdown editors after page load
-  document.addEventListener('DOMContentLoaded', () => {
-      const markdownElements = document.querySelectorAll('div[data-markdown-source]');
-      console.log('Found markdown elements:', markdownElements.length);
-      markdownElements.forEach(element => {
-          new MarkdownEditor(element);
-      });
+  document.addEventListener("DOMContentLoaded", () => {
+    const markdownElements = document.querySelectorAll(
+      "div[data-markdown-source]",
+    );
+    console.log("Found markdown elements:", markdownElements.length);
+    markdownElements.forEach((element) => {
+      new MarkdownEditor(element);
+    });
   });
 </script>
+
