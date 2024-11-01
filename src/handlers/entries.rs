@@ -1,9 +1,10 @@
-use crate::dev::SCRIPT;
 use crate::error::{ErrorType, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use crate::utils::kv_replace;
 use minify_html::minify;
 use std::{collections::HashSet, fs, path::PathBuf};
+
+pub const SCRIPT: &str = include_str!("../dev/inline_script.html");
 
 pub fn process_entry(
     src: &PathBuf,
@@ -11,7 +12,6 @@ pub fn process_entry(
     entry_path: String,
     result_path: String,
     kv: Vec<(&str, &str)>,
-    hist: HashSet<PathBuf>,
     dev: bool,
 ) -> Vec<ProcessError> {
     let mut errors: Vec<ProcessError> = Vec::new();
@@ -90,25 +90,9 @@ pub fn process_entry(
     }
 
     let mut output: Vec<u8>;
-    if dev {
-        if page_result.output.contains("</head>")
-            && !page_result
-                .output
-                .contains("// * SCRIPT INCLUDED IN DEV MODE")
-        {
-            let modified_output = page_result.output.replace(
-                "</head>",
-                &format!("<script src=\"{}\"></script></head>", SCRIPT),
-            );
-            output = modified_output.into_bytes();
-        } else {
-            let modified_output = format!("<head>{}</head>{}", SCRIPT, page_result.output);
-            output = modified_output.into_bytes();
-        }
-    } else {
-        output = page_result.output.into_bytes();
-        output = minify(&output, &minify_html::Cfg::spec_compliant());
-    }
+
+    output = page_result.output.into_bytes();
+    output = minify(&output, &minify_html::Cfg::spec_compliant());
 
     match fs::write(&result_path, &output) {
         Ok(_) => (),
