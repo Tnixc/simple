@@ -36,9 +36,10 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<Proc
     }
 }
 
-fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf) -> () {
+fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u16) -> () {
     let clients: Arc<Mutex<HashMap<u64, Responder>>> = Arc::new(Mutex::new(HashMap::new()));
-    let event_hub = simple_websockets::launch(2727).expect("failed to listen on port 2727");
+    let event_hub = simple_websockets::launch(ws_port)
+        .expect(&format!("failed to listen on port {}", ws_port));
 
     // Spawn thread to handle messages from receiver
     let clients_clone = Arc::clone(&clients);
@@ -104,10 +105,17 @@ fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
 }
 
 pub fn spawn_watcher(args: Vec<String>) -> () {
-    cprintln!("<k!>|-----------------------------------|</>");
-    cprintln!("| <s>Now serving <y><u>http://localhost:7272</></></> |");
-    cprintln!("<k!>|-----------------------------------|</>");
-    cprintln!("<b>The websocket port for reloading is 2727.</>");
+    let base_preview_port = 7272;
+    let base_websocket_port = 27272;
+
+    // Find available ports
+    let preview_port = utils::find_next_available_port(base_preview_port);
+    let websocket_port = utils::find_next_available_port(base_websocket_port);
+
+    cprintln!("<k!>|------------------------------------------|</>");
+    cprintln!("| <s>Now serving <y><u>http://localhost:{}</></></> |", preview_port);
+    cprintln!("<k!>|------------------------------------------|</>");
+    cprintln!("<b>The websocket port for reloading is {}.</b>", websocket_port);
 
     let dist = PathBuf::from(&args[2]).join("dev");
     let src = PathBuf::from(&args[2]).join("src");
@@ -115,7 +123,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     let (sender, receiver) = channel::<String>();
 
     let websocket_src = src.clone();
-    thread::spawn(move || spawn_websocket_handler(receiver, websocket_src));
+    thread::spawn(move || spawn_websocket_handler(receiver, websocket_src, websocket_port));
 
     let _ = build(args.clone(), true).map_err(|e| {
         utils::print_vec_errs(&e);
