@@ -37,8 +37,8 @@ pub fn render_markdown(mut string: String) -> String {
                 .trim_start_matches("<markdown>")
                 .trim_end_matches("</markdown>");
             let content = utils::unindent(res);
-            let rendered = &markdown_to_html_with_plugins(&content, &options, &plugins);
-            string = string.replacen(found, rendered, 1);
+            let rendered = "<div style='display: contents;'>".to_owned() + &markdown_to_html_with_plugins(&content, &options, &plugins) + "</div>";
+            string = string.replacen(found, &rendered, 1);
         }
     }
     return string;
