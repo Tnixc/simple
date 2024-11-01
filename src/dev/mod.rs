@@ -8,7 +8,6 @@ use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
@@ -36,7 +35,8 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<Proc
         }
     }
 }
-fn spawn_websocket_handler(receiver: Receiver<String>) -> () {
+
+fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf) -> () {
     let clients: Arc<Mutex<HashMap<u64, Responder>>> = Arc::new(Mutex::new(HashMap::new()));
 
     let event_hub = simple_websockets::launch(2727).expect("failed to listen on port 2727");
@@ -84,36 +84,45 @@ fn spawn_websocket_handler(receiver: Receiver<String>) -> () {
             }
             Event::Message(_, msg) => {
                 if let Message::Text(text) = msg {
+                    println!("Received websocket message: {}", text);
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
                         if json["type"] == "markdown_update" {
-                            let content = json["content"].as_str().unwrap();
-                            let original = json["originalContent"].as_str().unwrap();
+                            let content = json["content"].as_str().unwrap().trim();
+                            let original = json["originalContent"].as_str().unwrap().trim();
 
-                            // Search through src directory for file containing original content
-                            let src_dir = Path::new("src");
-                            if let Ok(entries) = fs::read_dir(src_dir) {
-                                for entry in entries.flatten() {
-                                    if let Ok(file_content) = fs::read_to_string(entry.path()) {
-                                        if file_content.contains(original) {
-                                            // Replace the content
-                                            let new_content =
-                                                file_content.replace(original, content);
-                                            if let Err(e) = fs::write(entry.path(), new_content) {
-                                                eprintln!("Failed to update file: {}", e);
-                                            } else {
-                                                // Trigger rebuild
-                                                // let _ = sender.send("reload".to_string());
+                            println!("Processing markdown update:");
+                            println!("Original content: {}", original);
+                            println!("New content: {}", content);
+
+                            // Search through all files in src directory recursively using our util
+                            match utils::walk_dir(&src) {
+                                Ok(files) => {
+                                    for path in files {
+                                        if let Ok(file_content) = fs::read_to_string(&path) {
+                                            println!("Checking file: {}", path.display());
+                                            if file_content.contains(original) {
+                                                println!("Found matching file: {}", path.display());
+                                                // Replace the content
+                                                let new_content =
+                                                    file_content.replace(original, content);
+
+                                                match fs::write(&path, new_content) {
+                                                    Ok(_) => println!("Successfully updated file"),
+                                                    Err(e) => {
+                                                        eprintln!("Failed to update file: {}", e)
+                                                    }
+                                                }
+                                                break;
                                             }
-                                            break;
                                         }
                                     }
                                 }
+                                Err(e) => eprintln!("Error walking directory: {}", e),
                             }
                         }
                     }
                 }
             }
-            _ => {}
         }
     }
 }
@@ -124,18 +133,17 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     cprintln!("<k!>|-----------------------------------|</>");
     cprintln!("<b>The websocket port for reloading is 2727.</>");
 
+    let dist = PathBuf::from(&args[2]).join("dev");
+    let src = PathBuf::from(&args[2]).join("src");
+
     let (sender, receiver) = channel::<String>();
-    thread::spawn(|| spawn_websocket_handler(receiver));
+
+    let websocket_src = src.clone();
+    thread::spawn(move || spawn_websocket_handler(receiver, websocket_src));
 
     let _ = build(args.clone(), true).map_err(|e| {
         utils::print_vec_errs(&e);
     });
-
-    let dist = PathBuf::from(&args[2]).join("dev");
-    let src = PathBuf::from(&args[2]).join("src");
-
-    // let mut watcher = notify::recommended_watcher(|res| dev_watch_handler(res)).unwrap();
-    // Can't use recommended_watcher because it endlessly triggers sometimes. Probably something to do with FSEvents on macOS as that doesn't work too.
 
     let config = notify::Config::default()
         .with_compare_contents(true)
@@ -180,4 +188,3 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
         Response::html("404 error").with_status_code(404)
     });
 }
-//

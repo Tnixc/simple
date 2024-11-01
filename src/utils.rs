@@ -4,7 +4,7 @@ use color_print::cformat;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use WithItem::File;
 
 const KV_PATTERN: &str = r#"(\w+)=(['"])(?:(?!\2).)*\2"#;
@@ -157,6 +157,33 @@ pub fn format_errs(errors: &Vec<ProcessError>) -> String {
         e_i += 1;
     }
     msg
+}
+
+pub fn walk_dir(dir: &PathBuf) -> Result<Vec<PathBuf>, ProcessError> {
+    let mut files = Vec::new();
+    walk_dir_internal(&dir, &mut files)?;
+    Ok(files)
+}
+
+fn walk_dir_internal(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ProcessError> {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir).map_proc_err(
+            WithItem::File,
+            ErrorType::Io,
+            &PathBuf::from(dir),
+            None,
+        )? {
+            let entry =
+                entry.map_proc_err(WithItem::File, ErrorType::Io, &PathBuf::from(dir), None)?;
+            let path = entry.path();
+            if path.is_dir() {
+                walk_dir_internal(&path, files)?;
+            } else {
+                files.push(path);
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

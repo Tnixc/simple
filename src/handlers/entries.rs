@@ -4,8 +4,6 @@ use crate::utils::kv_replace;
 use minify_html::minify;
 use std::{collections::HashSet, fs, path::PathBuf};
 
-pub const SCRIPT: &str = include_str!("../dev/inline_script.html");
-
 pub fn process_entry(
     src: &PathBuf,
     name: &str,
