@@ -4,6 +4,7 @@ use color_print::cformat;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
 use std::fs;
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use WithItem::File;
 
@@ -184,6 +185,16 @@ fn walk_dir_internal(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), Process
         }
     }
     Ok(())
+}
+
+pub fn find_next_available_port(start_port: u16) -> u16 {
+    (start_port..65535)
+        .find(|port| is_port_available(*port))
+        .expect("No available ports found")
+}
+
+fn is_port_available(port: u16) -> bool {
+    TcpListener::bind(("127.0.0.1", port)).is_ok()
 }
 
 #[cfg(test)]
