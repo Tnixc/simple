@@ -1,3 +1,4 @@
+use crate::dev::DevInfo;
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::render_markdown;
@@ -58,10 +59,6 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
         &mut errors,
     );
 
-    if dev && !string.contains("// * SCRIPT INCLUDED IN DEV MODE") {
-        string = string.replace("<head>", &format!("<head>{}", SCRIPT));
-    }
-
     return ProcessResult {
         output: string,
         errors,
@@ -73,10 +70,13 @@ pub fn process_pages(
     src: &PathBuf,
     source: PathBuf,
     pages: PathBuf,
-    dev: bool,
+    dev_info: DevInfo,
 ) -> Result<(), Vec<ProcessError>> {
     let mut errors: Vec<ProcessError> = Vec::new();
-
+    let dev = match dev_info {
+        DevInfo::False => false,
+        DevInfo::WsPort(_) => true,
+    };
     let entries = match fs::read_dir(&pages) {
         Ok(entries) => entries,
         Err(e) => {
@@ -99,7 +99,9 @@ pub fn process_pages(
         if let Ok(entry) = entry {
             let path = entry.path();
             if path.is_dir() {
-                if let Err(mut errs) = process_pages(&dir, &src, source.join(&path), path, dev) {
+                if let Err(mut errs) =
+                    process_pages(&dir, &src, source.join(&path), path, dev_info)
+                {
                     errors.append(&mut errs);
                 }
             } else {
@@ -135,12 +137,21 @@ pub fn process_pages(
                             .inspect_err(|e| errors.push((*e).clone()));
                         match f {
                             Ok(mut f) => {
-                                let mut w = result.output.as_bytes();
-                                let to_write = if !dev {
-                                    let s = minify(&mut w, &minify_cfg);
-                                    s
-                                } else {
-                                    w.to_vec()
+                                let to_write = match dev_info {
+                                    DevInfo::False => {
+                                        let mut w = result.output.as_bytes();
+                                        let minified = minify(&mut w, &minify_cfg);
+                                        minified
+                                    },
+                                    DevInfo::WsPort(ws_port) => {
+                                        let mut s = result.output;
+                                        s = s.replace("27272", ws_port.to_string().as_str());
+                                        if !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
+                                            s = s.replace("<head>", &format!("<head>{}", SCRIPT));
+                                        }
+
+                                        s.as_bytes().to_vec()
+                                    },
                                 };
                                 let _ = f
                                     .write_all(to_write.as_slice())

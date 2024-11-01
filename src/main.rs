@@ -11,7 +11,7 @@ mod new;
 mod utils;
 use crate::handlers::pages::process_pages;
 use color_print::{cformat, cprintln};
-use dev::spawn_watcher;
+use dev::{spawn_watcher, DevInfo};
 use error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use std::{env, fs, path::PathBuf, time::Instant};
 use utils::print_vec_errs;
@@ -33,7 +33,7 @@ fn main() -> () {
             spawn_watcher(args);
         }
         "build" => {
-            let _ = build(args, false).inspect_err(|e| print_vec_errs(&e));
+            let _ = build(args, DevInfo::False).inspect_err(|e| print_vec_errs(&e));
         }
         "new" => {
             let _ = new::new(args).inspect_err(|e| {
@@ -46,7 +46,7 @@ fn main() -> () {
     }
 }
 
-fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
+fn build(args: Vec<String>, dev_info: DevInfo) -> Result<(), Vec<ProcessError>> {
     cprintln!("<c><s>Building</></>...");
     let mut errors: Vec<ProcessError> = Vec::new();
 
@@ -58,7 +58,11 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
 
     let src = dir.join("src");
 
-    let working_dir = if dev { "dev" } else { "dist" };
+    let working_dir = match dev_info{
+        DevInfo::False => "dist",
+        DevInfo::WsPort(_) => "dev",
+    };
+
     let dist = dir.join(working_dir);
 
     let pages = src.join("pages");
@@ -75,7 +79,7 @@ fn build(args: Vec<String>, dev: bool) -> Result<(), Vec<ProcessError>> {
             .inspect_err(|e| errors.push((*e).clone()));
     }
 
-    process_pages(&dir, &src, src.clone(), pages, dev)?;
+    process_pages(&dir, &src, src.clone(), pages, dev_info)?;
 
     let _ = utils::copy_into(&public, &dist).inspect_err(|e| errors.push((*e).clone()));
     let duration = Instant::now().duration_since(start).as_millis();
