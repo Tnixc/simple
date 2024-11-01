@@ -84,32 +84,32 @@ fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf) -> () {
             }
             Event::Message(_, msg) => {
                 if let Message::Text(text) = msg {
-                    println!("Received websocket message: {}", text);
+                    // println!("Received websocket message: {}", text);
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
                         if json["type"] == "markdown_update" {
                             let content = json["content"].as_str().unwrap().trim();
                             let original = json["originalContent"].as_str().unwrap().trim();
 
-                            println!("Processing markdown update:");
-                            println!("Original content: {}", original);
-                            println!("New content: {}", content);
+                            // println!("Processing markdown update:");
+                            // println!("Original content: {}", original);
+                            // println!("New content: {}", content);
 
                             // Search through all files in src directory recursively using our util
                             match utils::walk_dir(&src) {
                                 Ok(files) => {
                                     for path in files {
                                         if let Ok(file_content) = fs::read_to_string(&path) {
-                                            println!("Checking file: {}", path.display());
+                                            // println!("Checking file: {}", path.display());
                                             if file_content.contains(original) {
-                                                println!("Found matching file: {}", path.display());
+                                                // println!("Found matching file: {}", path.display());
                                                 // Replace the content
                                                 let new_content =
                                                     file_content.replace(original, content);
 
                                                 match fs::write(&path, new_content) {
-                                                    Ok(_) => println!("Successfully updated file"),
+                                                    Ok(_) => {}
                                                     Err(e) => {
-                                                        eprintln!("Failed to update file: {}", e)
+                                                        eprintln!("{}", cformat!("<s><r>Failed to update file from edit:</></>: {e}"))
                                                     }
                                                 }
                                                 break;
@@ -117,7 +117,7 @@ fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf) -> () {
                                         }
                                     }
                                 }
-                                Err(e) => eprintln!("Error walking directory: {}", e),
+                                Err(e) => eprintln!("{}", cformat!("<s><r>Failed to walk directory: </></>: {e}"))
                             }
                         }
                     }
