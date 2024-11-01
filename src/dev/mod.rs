@@ -8,6 +8,7 @@ use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
@@ -15,8 +16,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use WithItem::None;
-
-pub const SCRIPT: &str = include_str!("../dev/inline_script.html");
 
 fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<ProcessError>> {
     let args: Vec<String> = env::args().collect();
@@ -82,6 +81,37 @@ fn spawn_websocket_handler(receiver: Receiver<String>) -> () {
             Event::Disconnect(client_id) => {
                 let mut locked_clients = clients.lock().unwrap();
                 locked_clients.remove(&client_id);
+            }
+            Event::Message(_, msg) => {
+                if let Message::Text(text) = msg {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                        if json["type"] == "markdown_update" {
+                            let content = json["content"].as_str().unwrap();
+                            let original = json["originalContent"].as_str().unwrap();
+
+                            // Search through src directory for file containing original content
+                            let src_dir = Path::new("src");
+                            if let Ok(entries) = fs::read_dir(src_dir) {
+                                for entry in entries.flatten() {
+                                    if let Ok(file_content) = fs::read_to_string(entry.path()) {
+                                        if file_content.contains(original) {
+                                            // Replace the content
+                                            let new_content =
+                                                file_content.replace(original, content);
+                                            if let Err(e) = fs::write(entry.path(), new_content) {
+                                                eprintln!("Failed to update file: {}", e);
+                                            } else {
+                                                // Trigger rebuild
+                                                // let _ = sender.send("reload".to_string());
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             _ => {}
         }

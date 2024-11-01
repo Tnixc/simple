@@ -97,7 +97,6 @@ pub fn get_template(
                 entry_path.to_string(),
                 result_path.to_string(),
                 kv,
-                hist.clone(),
                 dev,
             );
             errors.extend(entry_errs);

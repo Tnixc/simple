@@ -1,4 +1,3 @@
-use crate::dev::SCRIPT;
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::render_markdown;
@@ -9,6 +8,8 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
+
+pub const SCRIPT: &str = include_str!("../dev/inline_script.html");
 
 fn process_step<F>(
     func: F,
