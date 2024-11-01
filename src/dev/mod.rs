@@ -117,7 +117,10 @@ fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf) -> () {
                                         }
                                     }
                                 }
-                                Err(e) => eprintln!("{}", cformat!("<s><r>Failed to walk directory: </></>: {e}"))
+                                Err(e) => eprintln!(
+                                    "{}",
+                                    cformat!("<s><r>Failed to walk directory: </></>: {e}")
+                                ),
                             }
                         }
                     }
