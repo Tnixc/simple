@@ -156,7 +156,9 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
         .watch(&src, RecursiveMode::Recursive)
         .expect("watch failed");
 
-    rouille::start_server("localhost:7272", move |request| {
+    let preview_addr = format!("0.0.0.0:{}", preview_port);
+
+    rouille::start_server(preview_addr, move |request| {
         {
             let mut response = rouille::match_assets(request, dist.to_str().unwrap());
             if request.url() == "/" {
