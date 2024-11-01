@@ -38,94 +38,67 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<Proc
 
 fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf) -> () {
     let clients: Arc<Mutex<HashMap<u64, Responder>>> = Arc::new(Mutex::new(HashMap::new()));
-
     let event_hub = simple_websockets::launch(2727).expect("failed to listen on port 2727");
 
+    // Spawn thread to handle messages from receiver
     let clients_clone = Arc::clone(&clients);
     thread::spawn(move || loop {
         let message = receiver.recv().unwrap();
         let locked_clients = clients_clone.lock().unwrap();
-        match message.as_str() {
-            "reload" => {
-                for (_, responder) in locked_clients.iter() {
-                    let json = serde_json::json!(
-                        {
-                            "message": "reload"
-                        }
-                    );
-                    let signal = Message::Text(json.to_string());
-                    responder.send(signal);
-                }
-            }
-            // error case:
-            _ => {
-                for (_, responder) in locked_clients.iter() {
-                    let json = serde_json::json!(
-                        {
-                            "message": message
-                        }
-                    );
-                    let signal = Message::Text(json.to_string());
-                    responder.send(signal);
-                }
-            }
+
+        let json = serde_json::json!({
+            "message": if message == "reload" { "reload" } else { &message }
+        });
+        let signal = Message::Text(json.to_string());
+
+        for (_, responder) in locked_clients.iter() {
+            responder.send(signal.clone());
         }
     });
 
+    // Main event loop
     loop {
         match event_hub.poll_event() {
             Event::Connect(client_id, responder) => {
                 let mut locked_clients = clients.lock().unwrap();
                 locked_clients.insert(client_id, responder);
             }
+
             Event::Disconnect(client_id) => {
                 let mut locked_clients = clients.lock().unwrap();
                 locked_clients.remove(&client_id);
             }
+
             Event::Message(_, msg) => {
                 if let Message::Text(text) = msg {
-                    // println!("Received websocket message: {}", text);
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
-                        if json["type"] == "markdown_update" {
-                            let content = json["content"].as_str().unwrap().trim();
-                            let original = json["originalContent"].as_str().unwrap().trim();
-
-                            // println!("Processing markdown update:");
-                            // println!("Original content: {}", original);
-                            // println!("New content: {}", content);
-
-                            // Search through all files in src directory recursively using our util
-                            match utils::walk_dir(&src) {
-                                Ok(files) => {
-                                    for path in files {
-                                        if let Ok(file_content) = fs::read_to_string(&path) {
-                                            // println!("Checking file: {}", path.display());
-                                            if file_content.contains(original) {
-                                                // println!("Found matching file: {}", path.display());
-                                                // Replace the content
-                                                let new_content =
-                                                    file_content.replace(original, content);
-
-                                                match fs::write(&path, new_content) {
-                                                    Ok(_) => {}
-                                                    Err(e) => {
-                                                        eprintln!("{}", cformat!("<s><r>Failed to update file from edit:</></>: {e}"))
-                                                    }
-                                                }
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                                Err(e) => eprintln!(
-                                    "{}",
-                                    cformat!("<s><r>Failed to walk directory: </></>: {e}")
-                                ),
-                            }
-                        }
+                        handle_markdown_update(&json, &src);
                     }
                 }
             }
+        }
+    }
+}
+
+fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
+    if json["type"] == "markdown_update" {
+        let content = json["content"].as_str().unwrap().trim();
+        let original = json["originalContent"].as_str().unwrap().trim();
+
+        if let Ok(files) = utils::walk_dir(src) {
+            for path in files {
+                if let Ok(file_content) = fs::read_to_string(&path) {
+                    if file_content.contains(original) {
+                        let new_content = file_content.replace(original, content);
+                        if let Err(e) = fs::write(&path, new_content) {
+                            eprintln!("{}", cformat!("<s><r>Failed to update file from edit:</></>: {e}"));
+                        }
+                        break;
+                    }
+                }
+            }
+        } else if let Err(e) = utils::walk_dir(src) {
+            eprintln!("{}", cformat!("<s><r>Failed to walk directory:</></>: {e}"));
         }
     }
 }
