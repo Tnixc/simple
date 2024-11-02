@@ -11,7 +11,6 @@ data. I used it to build v6 of https://tnixc.space
 
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
-- [ ] Handle port collisions in dev server
 
 ### Components and Templates
 
@@ -45,6 +44,7 @@ data. I used it to build v6 of https://tnixc.space
 
 ### Done
 
+- [x] Handle port collisions in dev server
 - [x] Bi-directional editing: You can now double click on a rendered `<markdown>` element to edit it, and it's reflected in the source code.
 - [x] Implement proper Markdown rendering from .md files -> template entries
 - [x] Minify after build with minify_html, minifiy-js, lightningcss
