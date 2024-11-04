@@ -58,7 +58,7 @@ fn build(args: Vec<String>, dev_info: DevInfo) -> Result<(), Vec<ProcessError>> 
 
     let src = dir.join("src");
 
-    let working_dir = match dev_info{
+    let working_dir = match dev_info {
         DevInfo::False => "dist",
         DevInfo::WsPort(_) => "dev",
     };
