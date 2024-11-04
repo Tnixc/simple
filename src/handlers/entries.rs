@@ -1,6 +1,8 @@
+use crate::dev::{SCRIPT, WS_PORT};
 use crate::error::{ErrorType, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use crate::utils::kv_replace;
+use crate::IS_DEV;
 use minify_html::minify;
 use std::{collections::HashSet, fs, path::PathBuf};
 
@@ -10,9 +12,9 @@ pub fn process_entry(
     entry_path: String,
     result_path: String,
     kv: Vec<(&str, &str)>,
-    dev: bool,
 ) -> Vec<ProcessError> {
     let mut errors: Vec<ProcessError> = Vec::new();
+    let is_dev = *IS_DEV.get().unwrap();
 
     if entry_path.is_empty() || result_path.is_empty() {
         return vec![ProcessError {
@@ -33,7 +35,7 @@ pub fn process_entry(
     let result_path = src
         .parent()
         .unwrap()
-        .join(if dev { "dev" } else { "dist" })
+        .join(if is_dev { "dev" } else { "dist" })
         .join(result_path.trim_start_matches("/"));
 
     let frame_content = match fs::read_to_string(&frame_path) {
@@ -72,7 +74,7 @@ pub fn process_entry(
     };
     let final_content = kv_replace(kv, processed_content);
 
-    let page_result = page(src, final_content, dev, HashSet::new());
+    let page_result = page(src, final_content, HashSet::new());
 
     errors.extend(page_result.errors);
 
@@ -87,10 +89,19 @@ pub fn process_entry(
         }
     }
 
-    let mut output: Vec<u8>;
+    let mut s = page_result.output;
 
-    output = page_result.output.into_bytes();
-    output = minify(&output, &minify_html::Cfg::spec_compliant());
+    if is_dev {
+        if !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
+            s = s.replace("<head>", &format!("<head>{}", SCRIPT));
+            s = s.replace(
+                "__SIMPLE_WS_PORT_PLACEHOLDER__",
+                &WS_PORT.get().unwrap().to_string(),
+            );
+        }
+    }
+
+    let output = minify(&s.into_bytes(), &minify_html::Cfg::spec_compliant());
 
     match fs::write(&result_path, &output) {
         Ok(_) => (),

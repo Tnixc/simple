@@ -20,7 +20,6 @@ pub fn get_template(
     src: &PathBuf,
     name: &str,
     mut hist: HashSet<PathBuf>,
-    dev: bool,
 ) -> ProcessResult {
     let mut errors: Vec<ProcessError> = Vec::new();
     let template_path = src
@@ -97,7 +96,6 @@ pub fn get_template(
                 entry_path.to_string(),
                 result_path.to_string(),
                 kv,
-                dev,
             );
             errors.extend(entry_errs);
         }
@@ -115,7 +113,7 @@ pub fn get_template(
         };
     }
 
-    let page_res = page(src, contents, dev, hist);
+    let page_res = page(src, contents, hist);
     errors.extend(page_res.errors);
     return ProcessResult {
         output: page_res.output,
@@ -127,7 +125,6 @@ pub fn process_template(
     src: &PathBuf,
     input: String,
     hist: HashSet<PathBuf>,
-    dev: bool,
 ) -> ProcessResult {
     let mut errors = Vec::new();
     let mut replacements = Vec::new();
@@ -143,7 +140,7 @@ pub fn process_template(
                 .trim()
                 .trim_end_matches("}");
 
-            let result = get_template(src, template_name, hist.clone(), dev);
+            let result = get_template(src, template_name, hist.clone());
             let replacement = result.output;
             errors.extend(result.errors);
             replacements.push((found.as_str().to_string(), replacement));
