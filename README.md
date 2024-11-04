@@ -1,5 +1,8 @@
 # Simple Build tool
 
+> [!WARNING] 
+> Probably very buggy, it's very opiniated and not extensible.
+
 A simple build tool that assembles a static site from components, templates, and
 data. I used it to build v6 of https://tnixc.space
 
@@ -186,7 +189,8 @@ Will render out to:
 <img src="image.webp" alt="alt" />
 ```
 
-You can double click on a rendered markdown element and edit it from the web. The changes will be reflected in the source file. It is a bit flakely with escaped html entities, so try to avoid using those.
+> [!NOTE] 
+> You can double click on a rendered markdown element and edit it from the web. The changes will be reflected in the source file. It is a bit flakely with escaped html entities, so try to avoid using those.
 
 ### Template entries
 
