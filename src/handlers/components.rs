@@ -162,13 +162,8 @@ pub fn process_component(
                 ComponentTypes::Wrapping => {
                     let end = format!("</{}>", &name);
                     let slot_content = get_inside(output.clone(), found.as_str(), &end);
-                    let result = get_component_slot(
-                        src,
-                        name,
-                        targets,
-                        slot_content.clone(),
-                        hist.clone(),
-                    );
+                    let result =
+                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone());
                     let replacement = result.output;
                     errors.extend(result.errors);
 

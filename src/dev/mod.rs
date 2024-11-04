@@ -2,6 +2,7 @@ use crate::error::{ErrorType, ProcessError, WithItem};
 use crate::*;
 use color_print::cprintln;
 use notify::{RecursiveMode, Watcher};
+use once_cell::sync::OnceCell;
 use rouille::Response;
 use serde_json;
 use simple_websockets::{Event, Message, Responder};
@@ -15,14 +16,11 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use WithItem::None;
-use once_cell::sync::OnceCell;
 
 pub static WS_PORT: OnceCell<u16> = OnceCell::new();
 pub const SCRIPT: &str = include_str!("./inline_script.html");
 
-fn dev_rebuild(
-    res: Result<notify::Event, notify::Error>,
-) -> Result<(), Vec<ProcessError>> {
+fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<ProcessError>> {
     let args: Vec<String> = env::args().collect();
     match res {
         Ok(s) => {

@@ -16,11 +16,7 @@ lazy_static! {
         Regex::new(TEMPLATE_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
 }
 
-pub fn get_template(
-    src: &PathBuf,
-    name: &str,
-    mut hist: HashSet<PathBuf>,
-) -> ProcessResult {
+pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> ProcessResult {
     let mut errors: Vec<ProcessError> = Vec::new();
     let template_path = src
         .join("templates")
@@ -121,11 +117,7 @@ pub fn get_template(
     };
 }
 
-pub fn process_template(
-    src: &PathBuf,
-    input: String,
-    hist: HashSet<PathBuf>,
-) -> ProcessResult {
+pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) -> ProcessResult {
     let mut errors = Vec::new();
     let mut replacements = Vec::new();
 
