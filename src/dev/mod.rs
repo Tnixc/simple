@@ -15,25 +15,20 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use WithItem::None;
+use once_cell::sync::OnceCell;
 
+pub static WS_PORT: OnceCell<u16> = OnceCell::new();
 pub const SCRIPT: &str = include_str!("./inline_script.html");
-
-#[derive(Debug, Copy, Clone)]
-pub enum DevInfo {
-    False,
-    WsPort(u16),
-}
 
 fn dev_rebuild(
     res: Result<notify::Event, notify::Error>,
-    dev_info: DevInfo,
 ) -> Result<(), Vec<ProcessError>> {
     let args: Vec<String> = env::args().collect();
     match res {
         Ok(s) => {
             println!("");
             cprintln!("<m><s>Modified: </></>{:?}", s.paths);
-            let result = build(args.clone(), dev_info);
+            let result = build(args.clone());
             return result;
         }
         Err(e) => {
@@ -125,6 +120,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     // Find available ports
     let preview_port = utils::find_next_available_port(base_preview_port);
     let websocket_port = utils::find_next_available_port(base_websocket_port);
+    let _ = WS_PORT.set(websocket_port);
 
     cprintln!("<k!>|------------------------------------------|</>");
     cprintln!(
@@ -145,9 +141,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     let websocket_src = src.clone();
     thread::spawn(move || spawn_websocket_handler(receiver, websocket_src, websocket_port));
 
-    let dev_info = DevInfo::WsPort(websocket_port);
-
-    let _ = build(args.clone(), dev_info).map_err(|e| {
+    let _ = build(args.clone()).map_err(|e| {
         utils::print_vec_errs(&e);
     });
 
@@ -157,7 +151,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
 
     let mut watcher = notify::PollWatcher::new(
         move |res| {
-            let result = dev_rebuild(res, dev_info);
+            let result = dev_rebuild(res);
             if result.is_ok() {
                 let send = sender.send("reload".to_string());
                 if send.is_err() {

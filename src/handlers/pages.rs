@@ -1,9 +1,10 @@
-use crate::dev::{DevInfo, SCRIPT};
+use crate::dev::{SCRIPT, WS_PORT};
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::render_markdown;
 use crate::handlers::templates::process_template;
 use crate::utils::ProcessResult;
+use crate::IS_DEV;
 use minify_html::minify;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -24,7 +25,7 @@ fn process_step<F>(
     vec_errs.extend(result.errors);
 }
 
-pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>) -> ProcessResult {
+pub fn page(src: &PathBuf, mut string: String, hist: HashSet<PathBuf>) -> ProcessResult {
     if string.contains("</markdown>") {
         string = render_markdown(string);
     }
@@ -33,7 +34,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
 
     process_step(
         |srcpath, str, hist| {
-            process_component(srcpath, str, ComponentTypes::Wrapping, hist.clone(), dev)
+            process_component(srcpath, str, ComponentTypes::Wrapping, hist.clone())
         },
         src,
         &mut string,
@@ -42,7 +43,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
     );
     process_step(
         |srcpath, str, hist| {
-            process_component(srcpath, str, ComponentTypes::SelfClosing, hist.clone(), dev)
+            process_component(srcpath, str, ComponentTypes::SelfClosing, hist.clone())
         },
         src,
         &mut string,
@@ -50,7 +51,7 @@ pub fn page(src: &PathBuf, mut string: String, dev: bool, hist: HashSet<PathBuf>
         &mut errors,
     );
     process_step(
-        |srcpath, str, hist| process_template(srcpath, str, hist.clone(), dev),
+        |srcpath, str, hist| process_template(srcpath, str, hist.clone()),
         src,
         &mut string,
         &hist,
@@ -68,13 +69,9 @@ pub fn process_pages(
     src: &PathBuf,
     source: PathBuf,
     pages: PathBuf,
-    dev_info: DevInfo,
 ) -> Result<(), Vec<ProcessError>> {
     let mut errors: Vec<ProcessError> = Vec::new();
-    let dev = match dev_info {
-        DevInfo::False => false,
-        DevInfo::WsPort(_) => true,
-    };
+    let dev = *IS_DEV.get().unwrap();
     let entries = match fs::read_dir(&pages) {
         Ok(entries) => entries,
         Err(e) => {
@@ -97,8 +94,7 @@ pub fn process_pages(
         if let Ok(entry) = entry {
             let path = entry.path();
             if path.is_dir() {
-                if let Err(mut errs) = process_pages(&dir, &src, source.join(&path), path, dev_info)
-                {
+                if let Err(mut errs) = process_pages(&dir, &src, source.join(&path), path) {
                     errors.append(&mut errs);
                 }
             } else {
@@ -117,7 +113,7 @@ pub fn process_pages(
                             .inspect_err(|e| errors.push((*e).clone()))
                             .unwrap_or(String::new());
 
-                        let result = page(&src, file_content, dev, HashSet::new());
+                        let result = page(&src, file_content, HashSet::new());
 
                         let out_path = dir.join(&s).join(
                             path.strip_prefix(&src)
@@ -134,22 +130,23 @@ pub fn process_pages(
                             .inspect_err(|e| errors.push((*e).clone()));
                         match f {
                             Ok(mut f) => {
-                                let to_write = match dev_info {
-                                    DevInfo::False => {
-                                        let mut w = result.output.as_bytes();
-                                        let minified = minify(&mut w, &minify_cfg);
-                                        minified
+                                let to_write = if dev {
+                                    let ws_port = *WS_PORT.get().unwrap();
+                                    let mut s = result.output;
+                                    if !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
+                                        s = s.replace("<head>", &format!("<head>{}", SCRIPT));
+                                        s = s.replace(
+                                            "__SIMPLE_WS_PORT_PLACEHOLDER__",
+                                            ws_port.to_string().as_str(),
+                                        );
                                     }
-                                    DevInfo::WsPort(ws_port) => {
-                                        let mut s = result.output;
-                                        s = s.replace("27272", ws_port.to_string().as_str());
-                                        if !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
-                                            s = s.replace("<head>", &format!("<head>{}", SCRIPT));
-                                        }
-
-                                        s.as_bytes().to_vec()
-                                    }
+                                    s.as_bytes().to_vec()
+                                } else {
+                                    let mut w = result.output.as_bytes();
+                                    let minified = minify(&mut w, &minify_cfg);
+                                    minified
                                 };
+
                                 let _ = f
                                     .write_all(to_write.as_slice())
                                     .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
