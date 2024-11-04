@@ -1,4 +1,4 @@
-use crate::dev::DevInfo;
+use crate::dev::{DevInfo, SCRIPT};
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::markdown::render_markdown;
@@ -9,8 +9,6 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use std::{collections::HashSet, fs, io::Write, path::PathBuf};
-
-pub const SCRIPT: &str = include_str!("../dev/inline_script.html");
 
 fn process_step<F>(
     func: F,
@@ -99,8 +97,7 @@ pub fn process_pages(
         if let Ok(entry) = entry {
             let path = entry.path();
             if path.is_dir() {
-                if let Err(mut errs) =
-                    process_pages(&dir, &src, source.join(&path), path, dev_info)
+                if let Err(mut errs) = process_pages(&dir, &src, source.join(&path), path, dev_info)
                 {
                     errors.append(&mut errs);
                 }
@@ -142,7 +139,7 @@ pub fn process_pages(
                                         let mut w = result.output.as_bytes();
                                         let minified = minify(&mut w, &minify_cfg);
                                         minified
-                                    },
+                                    }
                                     DevInfo::WsPort(ws_port) => {
                                         let mut s = result.output;
                                         s = s.replace("27272", ws_port.to_string().as_str());
@@ -151,7 +148,7 @@ pub fn process_pages(
                                         }
 
                                         s.as_bytes().to_vec()
-                                    },
+                                    }
                                 };
                                 let _ = f
                                     .write_all(to_write.as_slice())

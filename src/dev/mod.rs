@@ -16,13 +16,18 @@ use std::thread;
 use std::time::Duration;
 use WithItem::None;
 
+pub const SCRIPT: &str = include_str!("./inline_script.html");
+
 #[derive(Debug, Copy, Clone)]
 pub enum DevInfo {
     False,
     WsPort(u16),
 }
 
-fn dev_rebuild(res: Result<notify::Event, notify::Error>, dev_info: DevInfo) -> Result<(), Vec<ProcessError>> {
+fn dev_rebuild(
+    res: Result<notify::Event, notify::Error>,
+    dev_info: DevInfo,
+) -> Result<(), Vec<ProcessError>> {
     let args: Vec<String> = env::args().collect();
     match res {
         Ok(s) => {
@@ -44,8 +49,8 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>, dev_info: DevInfo) -> 
 
 fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u16) -> () {
     let clients: Arc<Mutex<HashMap<u64, Responder>>> = Arc::new(Mutex::new(HashMap::new()));
-    let event_hub = simple_websockets::launch(ws_port)
-        .expect(&format!("failed to listen on port {}", ws_port));
+    let event_hub =
+        simple_websockets::launch(ws_port).expect(&format!("failed to listen on port {}", ws_port));
 
     // Spawn thread to handle messages from receiver
     let clients_clone = Arc::clone(&clients);
@@ -98,7 +103,10 @@ fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
                     if file_content.contains(original) {
                         let new_content = file_content.replace(original, content);
                         if let Err(e) = fs::write(&path, new_content) {
-                            eprintln!("{}", cformat!("<s><r>Failed to update file from edit:</></>: {e}"));
+                            eprintln!(
+                                "{}",
+                                cformat!("<s><r>Failed to update file from edit:</></>: {e}")
+                            );
                         }
                         break;
                     }
@@ -119,9 +127,15 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
     let websocket_port = utils::find_next_available_port(base_websocket_port);
 
     cprintln!("<k!>|------------------------------------------|</>");
-    cprintln!("| <s>Now serving <y><u>http://localhost:{}</></></> |", preview_port);
+    cprintln!(
+        "| <s>Now serving <y><u>http://localhost:{}</></></> |",
+        preview_port
+    );
     cprintln!("<k!>|------------------------------------------|</>");
-    cprintln!("<b>The websocket port for reloading is {}.</b>", websocket_port);
+    cprintln!(
+        "<b>The websocket port for reloading is {}.</b>",
+        websocket_port
+    );
 
     let dist = PathBuf::from(&args[2]).join("dev");
     let src = PathBuf::from(&args[2]).join("src");
