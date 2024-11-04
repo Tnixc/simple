@@ -41,7 +41,7 @@ pub fn render_markdown(mut string: String) -> String {
             // Store the original markdown in a data attribute
             let rendered = format!(
                 r#"<div style='display: contents;' data-markdown-source="{}">{}</div>"#,
-                content.replace("\"", "&quot;").trim(),
+                content .replace("\"", "&quot;").trim(),
                 markdown_to_html_with_plugins(&content, &options, &plugins)
             );
             string = string.replacen(found, &rendered, 1);
