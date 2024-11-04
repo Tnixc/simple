@@ -89,12 +89,11 @@ fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
     if json["type"] == "markdown_update" {
         let content = json["content"].as_str().unwrap().trim();
         let original = json["originalContent"].as_str().unwrap().trim();
-
         if let Ok(files) = utils::walk_dir(src) {
             for path in files {
                 if let Ok(file_content) = fs::read_to_string(&path) {
-                    if file_content.contains(original) {
-                        let new_content = file_content.replace(original, content);
+                    if file_content.contains(&original) {
+                        let new_content = file_content.replace(&original, &content);
                         if let Err(e) = fs::write(&path, new_content) {
                             eprintln!(
                                 "{}",

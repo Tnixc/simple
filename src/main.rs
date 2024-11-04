@@ -56,17 +56,15 @@ fn build(args: Vec<String>) -> Result<(), Vec<ProcessError>> {
     let mut errors: Vec<ProcessError> = Vec::new();
 
     let start = Instant::now();
+
     if args.len() < 3 {
         return Ok(());
     }
+
     let dir = PathBuf::from(&args[2]);
 
     let src = dir.join("src");
 
-    // let working_dir = match dev_info {
-    //     DevInfo::False => "dist",
-    //     DevInfo::WsPort(_) => "dev",
-    // };
     let working_dir = if *IS_DEV.get().unwrap() {
         "dev"
     } else {

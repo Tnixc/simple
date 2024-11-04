@@ -8,7 +8,6 @@ data. I used it to build v6 of https://tnixc.space
 ### Core
 
 - [ ] Proper error handling (no unwraps please)
-
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
 
@@ -21,13 +20,11 @@ data. I used it to build v6 of https://tnixc.space
 
 ### Data
 
-- [ ] Resolve dual sources of truth for Markdown frontmatter in blog posts
-      (can't fix without proper Markdown parsing into entries)
 - [ ] Improve JSON parsing error handling
 
 ### Markdown and Content
 
-- [ ] Implement OG Image and meta generation, especially for Markdown posts
+- [ ] LaTex?
 
 ### Errors/Logging
 
@@ -45,6 +42,7 @@ data. I used it to build v6 of https://tnixc.space
 ### Done
 
 - [x] Handle port collisions in dev server
+- [x] Resolve dual sources of truth for Markdown frontmatter in blog posts (can't fix without proper Markdown parsing into entries)
 - [x] Bi-directional editing: You can now double click on a rendered `<markdown>` element to edit it, and it's reflected in the source code.
 - [x] Implement proper Markdown rendering from .md files -> template entries
 - [x] Minify after build with minify_html, minifiy-js, lightningcss
@@ -187,6 +185,8 @@ Will render out to:
 <h1>Hello world</h1>
 <img src="image.webp" alt="alt" />
 ```
+
+You can double click on a rendered markdown element and edit it from the web. The changes will be reflected in the source file. It is a bit flakely with escaped html entities, so try to avoid using those.
 
 ### Template entries
 
