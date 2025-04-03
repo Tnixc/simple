@@ -47,5 +47,5 @@ pub fn render_markdown(mut string: String) -> String {
             string = string.replacen(found, &rendered, 1);
         }
     }
-    return string;
+    string
 }

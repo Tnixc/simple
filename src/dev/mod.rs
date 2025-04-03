@@ -4,7 +4,6 @@ use color_print::cprintln;
 use notify::{RecursiveMode, Watcher};
 use once_cell::sync::OnceCell;
 use rouille::Response;
-use serde_json;
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
 use std::env;
@@ -24,26 +23,24 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<Proc
     let args: Vec<String> = env::args().collect();
     match res {
         Ok(s) => {
-            println!("");
+            println!();
             cprintln!("<m><s>Modified: </></>{:?}", s.paths);
-            let result = build(args.clone());
-            return result;
+
+            build(args.clone())
         }
-        Err(e) => {
-            return Err(vec![ProcessError {
-                error_type: ErrorType::Other,
-                item: None,
-                path: PathBuf::from("Watcher"),
-                message: Some(format!("{e} (internal watcher error)")),
-            }])
-        }
+        Err(e) => Err(vec![ProcessError {
+            error_type: ErrorType::Other,
+            item: None,
+            path: PathBuf::from("Watcher"),
+            message: Some(format!("{e} (internal watcher error)")),
+        }]),
     }
 }
 
-fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u16) -> () {
+fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u16) {
     let clients: Arc<Mutex<HashMap<u64, Responder>>> = Arc::new(Mutex::new(HashMap::new()));
-    let event_hub =
-        simple_websockets::launch(ws_port).expect(&format!("failed to listen on port {}", ws_port));
+    let event_hub = simple_websockets::launch(ws_port)
+        .unwrap_or_else(|_| panic!("failed to listen on port {}", ws_port));
 
     // Spawn thread to handle messages from receiver
     let clients_clone = Arc::clone(&clients);
@@ -92,8 +89,8 @@ fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
         if let Ok(files) = utils::walk_dir(src) {
             for path in files {
                 if let Ok(file_content) = fs::read_to_string(&path) {
-                    if file_content.contains(&original) {
-                        let new_content = file_content.replace(&original, &content);
+                    if file_content.contains(original) {
+                        let new_content = file_content.replace(original, content);
                         if let Err(e) = fs::write(&path, new_content) {
                             eprintln!(
                                 "{}",
@@ -110,7 +107,7 @@ fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
     }
 }
 
-pub fn spawn_watcher(args: Vec<String>) -> () {
+pub fn spawn_watcher(args: Vec<String>) {
     let base_preview_port = 7272;
     let base_websocket_port = 27272;
 
@@ -175,7 +172,7 @@ pub fn spawn_watcher(args: Vec<String>) -> () {
         {
             let mut response = rouille::match_assets(request, dist.to_str().unwrap());
             if request.url() == "/" {
-                let f = fs::File::open(&dist.join("index").with_extension("html"));
+                let f = fs::File::open(dist.join("index").with_extension("html"));
                 if f.is_ok() {
                     response = Response::from_file("text/html", f.unwrap());
                 }

@@ -21,14 +21,14 @@ pub fn new(args: Vec<String>) -> std::io::Result<()> {
     create_dir(&path)?;
 
     let src = &path.join("src");
-    create_dir(&src)?;
-    create_dir(&src.join("components"))?;
-    create_dir(&src.join("templates"))?;
-    create_dir(&src.join("data"))?;
-    create_dir(&src.join("public"))?;
-    create_dir(&src.join("pages"))?;
+    create_dir(src)?;
+    create_dir(src.join("components"))?;
+    create_dir(src.join("templates"))?;
+    create_dir(src.join("data"))?;
+    create_dir(src.join("public"))?;
+    create_dir(src.join("pages"))?;
     write(
-        &src.join("pages").join("index").with_extension("html"),
+        src.join("pages").join("index").with_extension("html"),
         INDEX.as_bytes(),
     )?;
     println!(

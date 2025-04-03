@@ -51,17 +51,17 @@ pub fn get_component_self(
             errors: vec![ProcessError {
                 error_type: ErrorType::Circular,
                 item: WithItem::Component,
-                path: PathBuf::from(path),
+                path,
                 message: Some(format!("{:?}", hist)),
             }],
         };
     }
     let result = page(src, st, hist);
     errors.extend(result.errors);
-    return ProcessResult {
+    ProcessResult {
         output: result.output,
         errors,
-    };
+    }
 }
 
 pub fn get_component_slot(
@@ -99,7 +99,7 @@ pub fn get_component_slot(
     if let Some(content) = slot_content {
         // here it replaces "<slot>fallback</slot>" with "<slot></slot>, after the content is exists"
         for find in REGEX_SLOT.find_iter(&st.clone()) {
-            st = st.replace(&find.unwrap().as_str(), &content);
+            st = st.replace(find.unwrap().as_str(), &content);
         }
     }
     if !hist.insert(path.clone()) {
@@ -108,7 +108,7 @@ pub fn get_component_slot(
             errors: vec![ProcessError {
                 error_type: ErrorType::Circular,
                 item: WithItem::Component,
-                path: PathBuf::from(path),
+                path,
                 message: Some(format!("{:?}", hist)),
             }],
         };
@@ -116,10 +116,10 @@ pub fn get_component_slot(
 
     let result = page(src, st, hist);
     errors.extend(result.errors);
-    return ProcessResult {
+    ProcessResult {
         output: result.output,
         errors,
-    };
+    }
 }
 
 pub fn process_component(
@@ -148,7 +148,7 @@ pub fn process_component(
             let name = trim.split_whitespace().next().unwrap_or(trim);
             let targets = get_targets_kv(name, found.as_str())
                 .inspect_err(|e| errors.push((*e).clone()))
-                .unwrap_or(Vec::new());
+                .unwrap_or_default();
             match component_type {
                 ComponentTypes::SelfClosing => {
                     let target = found.as_str();
@@ -174,5 +174,5 @@ pub fn process_component(
             }
         }
     }
-    return ProcessResult { output, errors };
+    ProcessResult { output, errors }
 }

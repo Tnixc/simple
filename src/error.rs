@@ -45,7 +45,7 @@ impl fmt::Display for ProcessError {
         let message = &self.message;
         let msg_fmt = match message {
             Some(msg) => cformat!("<strong>{msg}</>"),
-            None => format!(""),
+            None => String::new(),
         };
         let path = &self
             .path
@@ -103,12 +103,12 @@ impl<T, E: std::fmt::Display> MapProcErr<T, E> for Result<T, E> {
             } else {
                 format!("{}", e)
             };
-            return ProcessError {
+            ProcessError {
                 error_type,
                 item,
                 path: path.clone(),
                 message: Some(msg),
-            };
+            }
         })
     }
 }

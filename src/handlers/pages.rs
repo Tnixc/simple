@@ -58,10 +58,10 @@ pub fn page(src: &PathBuf, mut string: String, hist: HashSet<PathBuf>) -> Proces
         &mut errors,
     );
 
-    return ProcessResult {
+    ProcessResult {
         output: string,
         errors,
-    };
+    }
 }
 
 pub fn process_pages(
@@ -94,7 +94,7 @@ pub fn process_pages(
         if let Ok(entry) = entry {
             let path = entry.path();
             if path.is_dir() {
-                if let Err(mut errs) = process_pages(&dir, &src, source.join(&path), path) {
+                if let Err(mut errs) = process_pages(dir, src, source.join(&path), path) {
                     errors.append(&mut errs);
                 }
             } else {
@@ -128,31 +128,28 @@ pub fn process_pages(
                         let f = std::fs::File::create(&out_path)
                             .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
                             .inspect_err(|e| errors.push((*e).clone()));
-                        match f {
-                            Ok(mut f) => {
-                                let to_write = if dev {
-                                    let ws_port = *WS_PORT.get().unwrap();
-                                    let mut s = result.output;
-                                    if !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
-                                        s = s.replace("<head>", &format!("<head>{}", SCRIPT));
-                                        s = s.replace(
-                                            "__SIMPLE_WS_PORT_PLACEHOLDER__",
-                                            ws_port.to_string().as_str(),
-                                        );
-                                    }
-                                    s.as_bytes().to_vec()
-                                } else {
-                                    let mut w = result.output.as_bytes();
-                                    let minified = minify(&mut w, &minify_cfg);
-                                    minified
-                                };
+                        if let Ok(mut f) = f {
+                            let to_write = if dev {
+                                let ws_port = *WS_PORT.get().unwrap();
+                                let mut s = result.output;
+                                if !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
+                                    s = s.replace("<head>", &format!("<head>{}", SCRIPT));
+                                    s = s.replace(
+                                        "__SIMPLE_WS_PORT_PLACEHOLDER__",
+                                        ws_port.to_string().as_str(),
+                                    );
+                                }
+                                s.as_bytes().to_vec()
+                            } else {
+                                let w = result.output.as_bytes();
 
-                                let _ = f
-                                    .write_all(to_write.as_slice())
-                                    .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
-                                    .inspect_err(|e| errors.push((*e).clone()));
-                            }
-                            Err(_) => (),
+                                minify(w, &minify_cfg)
+                            };
+
+                            let _ = f
+                                .write_all(to_write.as_slice())
+                                .map_proc_err(WithItem::File, ErrorType::Io, &out_path, None)
+                                .inspect_err(|e| errors.push((*e).clone()));
                         }
 
                         if !result.errors.is_empty() {
