@@ -103,7 +103,7 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
             errors: vec![ProcessError {
                 error_type: ErrorType::Circular,
                 item: WithItem::Component,
-                path: PathBuf::from(template_path),
+                path: template_path,
                 message: Some(format!("{:?}", hist)),
             }],
         };
@@ -111,10 +111,10 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
 
     let page_res = page(src, contents, hist);
     errors.extend(page_res.errors);
-    return ProcessResult {
+    ProcessResult {
         output: page_res.output,
         errors,
-    };
+    }
 }
 
 pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) -> ProcessResult {
@@ -143,5 +143,5 @@ pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) ->
         output = output.replacen(&old, &new, 1);
     }
 
-    return ProcessResult { output, errors };
+    ProcessResult { output, errors }
 }

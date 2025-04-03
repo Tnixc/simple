@@ -19,7 +19,7 @@ use utils::print_vec_errs;
 
 pub static IS_DEV: OnceCell<bool> = OnceCell::new();
 
-fn main() -> () {
+fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
@@ -38,7 +38,7 @@ fn main() -> () {
         }
         "build" => {
             let _ = IS_DEV.set(false);
-            let _ = build(args).inspect_err(|e| print_vec_errs(&e));
+            let _ = build(args).inspect_err(print_vec_errs);
         }
         "new" => {
             let _ = new::new(args).inspect_err(|e| {
@@ -78,12 +78,7 @@ fn build(args: Vec<String>) -> Result<(), Vec<ProcessError>> {
 
     if !dir.join(working_dir).exists() {
         let _ = fs::create_dir(dir.join(working_dir))
-            .map_proc_err(
-                WithItem::File,
-                ErrorType::Io,
-                &PathBuf::from(dir.join(working_dir)),
-                None,
-            )
+            .map_proc_err(WithItem::File, ErrorType::Io, &dir.join(working_dir), None)
             .inspect_err(|e| errors.push((*e).clone()));
     }
 

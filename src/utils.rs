@@ -162,7 +162,7 @@ pub fn format_errs(errors: &Vec<ProcessError>) -> String {
 
 pub fn walk_dir(dir: &PathBuf) -> Result<Vec<PathBuf>, ProcessError> {
     let mut files = Vec::new();
-    walk_dir_internal(&dir, &mut files)?;
+    walk_dir_internal(dir, &mut files)?;
     Ok(files)
 }
 

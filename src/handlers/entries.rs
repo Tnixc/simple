@@ -91,14 +91,12 @@ pub fn process_entry(
 
     let mut s = page_result.output;
 
-    if is_dev {
-        if !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
-            s = s.replace("<head>", &format!("<head>{}", SCRIPT));
-            s = s.replace(
-                "__SIMPLE_WS_PORT_PLACEHOLDER__",
-                &WS_PORT.get().unwrap().to_string(),
-            );
-        }
+    if is_dev && !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
+        s = s.replace("<head>", &format!("<head>{}", SCRIPT));
+        s = s.replace(
+            "__SIMPLE_WS_PORT_PLACEHOLDER__",
+            &WS_PORT.get().unwrap().to_string(),
+        );
     }
 
     let output = minify(&s.into_bytes(), &minify_html::Cfg::spec_compliant());
