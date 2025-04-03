@@ -98,9 +98,8 @@ pub fn get_component_slot(
     st = kv_replace(targets.clone(), st);
     if let Some(content) = slot_content {
         // here it replaces "<slot>fallback</slot>" with "<slot></slot>, after the content is exists"
-        for find in REGEX_SLOT.find_iter(&st) {
+        for find in REGEX_SLOT.find_iter(&st.clone()) {
             st = st.replace(&find.unwrap().as_str(), &content);
-            break;
         }
     }
     if !hist.insert(path.clone()) {

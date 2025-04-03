@@ -2,7 +2,7 @@ use color_print::cformat;
 use std::fmt;
 use std::path::PathBuf;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ErrorType {
     Io,
     Syntax,
@@ -10,7 +10,7 @@ pub enum ErrorType {
     Other,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum WithItem {
     Component,
     Template,
@@ -70,7 +70,12 @@ impl fmt::Display for ProcessError {
 
 impl fmt::Debug for ProcessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        f.debug_struct("ProcessError")
+            .field("item", &self.item)
+            .field("path", &self.path)
+            .field("error_type", &self.error_type)
+            .field("message", &self.message)
+            .finish()
     }
 }
 
