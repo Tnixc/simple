@@ -2,37 +2,31 @@ use crate::error::ErrorType::Io;
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use color_print::cformat;
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use std::fs;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use WithItem::File;
 
-const KV_PATTERN: &str = r#"(\w+)=(['"])(?:(?!\2).)*\2"#;
-lazy_static! {
-    static ref KV_REGEX: Regex =
-        Regex::new(KV_PATTERN).expect("Regex failed to parse, this shouldn't happen");
-}
+static KV_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(\w+)=(['"])(?:(?!\2).)*\2"#)
+        .expect("Regex failed to parse, this shouldn't happen")
+});
 
-/// Gets the key-value pairs from an html element
-/// Example:
-/// ```html
-/// <component key1="value1" key2='value2'>
-/// ```
-/// Has the following key-value pairs:
-/// `[("key1", "value1"), ("key2", "value2")]`
 pub fn get_targets_kv<'a>(
     name: &str,
     found: &'a str,
 ) -> Result<Vec<(&'a str, &'a str)>, ProcessError> {
-    let mut targets: Vec<(&str, &str)> = Vec::new();
-    // Regex for key-value pairs in components
-    let str = found
-        .trim_start_matches(&("<".to_owned() + name))
-        .trim_end_matches(">")
+    let mut targets = Vec::new();
+
+    let start_tag = format!("<{}", name);
+    let trimmed = found
+        .strip_prefix(&start_tag)
+        .unwrap_or(found)
+        .trim_end_matches('>')
         .trim_end_matches("/>");
 
-    for item in KV_REGEX.find_iter(str) {
+    for item in KV_REGEX.find_iter(trimmed) {
         if let Ok(item) = item {
             if let Some((k, mut v)) = item.as_str().split_once('=') {
                 v = v.trim_matches(|c| c == '\'' || c == '"');
@@ -45,19 +39,11 @@ pub fn get_targets_kv<'a>(
                     message: Some("Couldn't split key-value pair.".to_string()),
                 });
             }
-        } else {
-            return Err(ProcessError {
-                error_type: ErrorType::Syntax,
-                item: WithItem::Component,
-                path: PathBuf::from(name),
-                message: Some("Couldn't find key-value pair.".to_string()),
-            });
         }
     }
     Ok(targets)
 }
 
-/// Replaces keys with values in a string
 pub fn kv_replace(kv: Vec<(&str, &str)>, mut from: String) -> String {
     for (k, v) in kv {
         let key = format!("${{{k}}}");
@@ -66,7 +52,6 @@ pub fn kv_replace(kv: Vec<(&str, &str)>, mut from: String) -> String {
     from
 }
 
-/// Gets the content between two strings
 pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
     let start_index = input.find(from)?;
     let start_pos = start_index + from.len();
@@ -115,23 +100,33 @@ pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
 pub fn unindent(input: &str) -> String {
     let lines: Vec<&str> = input.lines().collect();
 
+    if lines.is_empty() {
+        return String::new();
+    }
+
     let min_indent = lines
         .iter()
         .filter(|line| !line.trim().is_empty())
         .map(|line| line.len() - line.trim_start().len())
         .min()
         .unwrap_or(0);
-    lines
-        .into_iter()
-        .map(|line| {
-            if line.len() > min_indent {
-                &line[min_indent..]
-            } else {
-                line.trim_start()
-            }
-        })
-        .collect::<Vec<&str>>()
-        .join("\n")
+
+    if min_indent == 0 {
+        return input.to_string();
+    }
+
+    let mut result = String::with_capacity(input.len());
+    for (i, line) in lines.iter().enumerate() {
+        if i > 0 {
+            result.push('\n');
+        }
+        if line.len() > min_indent && !line.trim().is_empty() {
+            result.push_str(&line[min_indent..]);
+        } else {
+            result.push_str(line.trim_start());
+        }
+    }
+    result
 }
 
 pub struct ProcessResult {
@@ -140,22 +135,18 @@ pub struct ProcessResult {
 }
 
 pub fn print_vec_errs(errors: &Vec<ProcessError>) {
-    let mut e_i = 1;
-    for er in errors {
-        eprintln!("{}", cformat!("<s><r>Build error {e_i}</></>: {er}"));
-        e_i += 1;
+    for (i, er) in errors.iter().enumerate() {
+        eprintln!("{}", cformat!("<s><r>Build error {}</></>: {er}", i + 1));
     }
 }
 
 pub fn format_errs(errors: &Vec<ProcessError>) -> String {
-    let mut e_i = 1;
-    let mut msg = String::new();
-    for er in errors {
+    let mut msg = String::with_capacity(errors.len() * 100);
+    for (i, er) in errors.iter().enumerate() {
         msg.push_str(&format!(
             "<p>{}</p>",
-            cformat!("<s><r>Build error {e_i}</></>: {er}\n")
+            cformat!("<s><r>Build error {}</></>: {er}\n", i + 1)
         ));
-        e_i += 1;
     }
     msg
 }
