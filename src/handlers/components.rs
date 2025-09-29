@@ -2,25 +2,23 @@ use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::pages::page;
 use crate::utils::{get_inside, get_targets_kv, kv_replace, ProcessResult};
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use std::{collections::HashSet, fs, path::PathBuf};
 
-const COMPONENT_PATTERN_SELF: &str =
-    r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#;
+static REGEX_SELF_CLOSING: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*\/>(?!.*?-->)"#)
+        .expect("Regex failed to parse. This shouldn't happen.")
+});
 
-const COMPONENT_PATTERN_WRAPPING: &str =
-    r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*>(?!.*?-->)"#;
+static REGEX_WRAPPING: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?<!<!--)<([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)(\s+[A-Za-z]+=(['\"]).*?\4)*\s*>(?!.*?-->)"#)
+        .expect("Regex failed to parse. This shouldn't happen.")
+});
 
-const SLOT_PATTERN: &str = r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#;
-
-lazy_static! {
-    static ref REGEX_SELF_CLOSING: Regex =
-        Regex::new(COMPONENT_PATTERN_SELF).expect("Regex failed to parse. This shouldn't happen.");
-    static ref REGEX_WRAPPING: Regex = Regex::new(COMPONENT_PATTERN_WRAPPING)
-        .expect("Regex failed to parse. This shouldn't happen.");
-    static ref REGEX_SLOT: Regex =
-        Regex::new(SLOT_PATTERN).expect("Regex failed to parse. This shouldn't happen.");
-}
+static REGEX_SLOT: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?<!<!--)<slot([\S\s])*>*?<\/slot>(?!.*?-->)"#)
+        .expect("Regex failed to parse. This shouldn't happen.")
+});
 
 pub enum ComponentTypes {
     SelfClosing,
@@ -39,12 +37,6 @@ pub fn get_component_self(
         .join(component.replace(":", "/"))
         .with_extension("component.html");
 
-    let mut st = fs::read_to_string(&path)
-        .map_proc_err(WithItem::Component, ErrorType::Io, &path, None)
-        .inspect_err(|e| errors.push((*e).clone()))
-        .unwrap_or(String::new());
-
-    st = kv_replace(targets, st);
     if !hist.insert(path.clone()) {
         return ProcessResult {
             output: String::new(),
@@ -56,6 +48,20 @@ pub fn get_component_self(
             }],
         };
     }
+
+    let mut st = fs::read_to_string(&path)
+        .map_proc_err(WithItem::Component, ErrorType::Io, &path, None)
+        .inspect_err(|e| errors.push((*e).clone()))
+        .unwrap_or_else(|_| String::new());
+
+    if st.is_empty() && !errors.is_empty() {
+        return ProcessResult {
+            output: String::new(),
+            errors,
+        };
+    }
+
+    st = kv_replace(targets, st);
     let result = page(src, st, hist);
     errors.extend(result.errors);
     ProcessResult {
@@ -76,10 +82,30 @@ pub fn get_component_slot(
         .join("components")
         .join(component.replace(":", "/"))
         .with_extension("component.html");
+
+    if !hist.insert(path.clone()) {
+        return ProcessResult {
+            output: String::new(),
+            errors: vec![ProcessError {
+                error_type: ErrorType::Circular,
+                item: WithItem::Component,
+                path,
+                message: Some(format!("{:?}", hist)),
+            }],
+        };
+    }
+
     let mut st = fs::read_to_string(&path)
         .map_proc_err(WithItem::Component, ErrorType::Io, &path, None)
         .inspect_err(|e| errors.push((*e).clone()))
-        .unwrap_or(String::new());
+        .unwrap_or_else(|_| String::new());
+
+    if st.is_empty() && !errors.is_empty() {
+        return ProcessResult {
+            output: String::new(),
+            errors,
+        };
+    }
 
     if !st.contains("<slot>") || !st.contains("</slot>") {
         return ProcessResult {
@@ -95,23 +121,20 @@ pub fn get_component_slot(
         };
     }
 
-    st = kv_replace(targets.clone(), st);
+    st = kv_replace(targets, st);
     if let Some(content) = slot_content {
-        // here it replaces "<slot>fallback</slot>" with "<slot></slot>, after the content is exists"
-        for find in REGEX_SLOT.find_iter(&st.clone()) {
-            st = st.replace(find.unwrap().as_str(), &content);
+        let mut result = String::with_capacity(st.len() + content.len());
+        let mut last_end = 0;
+
+        for find in REGEX_SLOT.find_iter(&st) {
+            if let Ok(mat) = find {
+                result.push_str(&st[last_end..mat.start()]);
+                result.push_str(&content);
+                last_end = mat.end();
+            }
         }
-    }
-    if !hist.insert(path.clone()) {
-        return ProcessResult {
-            output: String::new(),
-            errors: vec![ProcessError {
-                error_type: ErrorType::Circular,
-                item: WithItem::Component,
-                path,
-                message: Some(format!("{:?}", hist)),
-            }],
-        };
+        result.push_str(&st[last_end..]);
+        st = result;
     }
 
     let result = page(src, st, hist);
@@ -134,45 +157,51 @@ pub fn process_component(
     };
 
     let mut errors: Vec<ProcessError> = Vec::new();
-
     let mut output = input;
-    for f in regex.find_iter(output.clone().as_str()) {
+    let mut replacements = Vec::new();
+
+    for f in regex.find_iter(&output) {
         if let Ok(found) = f {
-            let trim = found
-                .as_str()
+            let found_str = found.as_str();
+            let trim = found_str
                 .trim()
-                .trim_start_matches("<")
+                .strip_prefix('<')
+                .unwrap_or(found_str)
                 .trim_end_matches("/>")
-                .trim_end_matches(">")
+                .trim_end_matches('>')
                 .trim();
+
             let name = trim.split_whitespace().next().unwrap_or(trim);
-            let targets = get_targets_kv(name, found.as_str())
+            let targets = get_targets_kv(name, found_str)
                 .inspect_err(|e| errors.push((*e).clone()))
                 .unwrap_or_default();
+
             match component_type {
                 ComponentTypes::SelfClosing => {
-                    let target = found.as_str();
                     let result = get_component_self(src, name, targets, hist.clone());
-                    let replacement = result.output;
                     errors.extend(result.errors);
-
-                    output = output.replacen(target, &replacement, 1);
+                    replacements.push((found_str.to_string(), result.output));
                 }
                 ComponentTypes::Wrapping => {
-                    let end = format!("</{}>", &name);
-                    let slot_content = get_inside(output.clone(), found.as_str(), &end);
+                    let end = format!("</{}>", name);
+                    let slot_content = get_inside(output.clone(), found_str, &end);
                     let result =
                         get_component_slot(src, name, targets, slot_content.clone(), hist.clone());
-                    let replacement = result.output;
                     errors.extend(result.errors);
 
-                    output =
-                        output.replacen(slot_content.unwrap_or("".to_string()).as_str(), "", 1);
-                    output = output.replacen(&end, "", 1);
-                    output = output.replacen(found.as_str(), &replacement, 1);
+                    if let Some(content) = slot_content {
+                        replacements.push((content, String::new()));
+                    }
+                    replacements.push((end, String::new()));
+                    replacements.push((found_str.to_string(), result.output));
                 }
             }
         }
     }
+
+    for (from, to) in replacements {
+        output = output.replacen(&from, &to, 1);
+    }
+
     ProcessResult { output, errors }
 }

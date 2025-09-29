@@ -28,11 +28,7 @@
       this.originalContent = element.getAttribute("data-markdown-source");
       this.devSocket = new DevWebSocket();
       this.isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      this.initializeEditor();
-    }
-
-    get themes() {
-      return {
+      this.themes = {
         dark: {
           modal: "rgba(0,0,0,0.7)",
           editor: "#100F0F",
@@ -46,6 +42,7 @@
           text: "#100F0F"
         }
       };
+      this.initializeEditor();
     }
 
     get currentTheme() {
@@ -54,53 +51,22 @@
 
     createModalElement() {
       const modal = document.createElement("div");
-      modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: ${this.currentTheme.modal};
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-      `;
+      const theme = this.currentTheme;
+      modal.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:${theme.modal};display:flex;justify-content:center;align-items:center;z-index:1000`;
       return modal;
     }
 
     createEditorContainer() {
       const editor = document.createElement("div");
-      editor.style.cssText = `
-        width: min(1200px, 90vw);
-        height: calc(100vh - 100px);
-        background: ${this.currentTheme.editor};
-        color: ${this.currentTheme.text};
-        padding: 20px;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      `;
+      const theme = this.currentTheme;
+      editor.style.cssText = `width:min(1200px,90vw);height:calc(100vh - 100px);background:${theme.editor};color:${theme.text};padding:20px;border-radius:8px;display:flex;flex-direction:column;gap:20px;box-shadow:0 4px 6px rgba(0,0,0,0.1)`;
       return editor;
     }
 
     createTextArea() {
       const textarea = document.createElement("textarea");
-      textarea.style.cssText = `
-        flex: 1;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        background: ${this.currentTheme.textarea};
-        color: ${this.currentTheme.text};
-        padding: 16px;
-        border: none !important;
-        outline: none !important;
-        resize: none;
-        border-radius: 4px;
-        font-size: 14px;
-        line-height: 1.5;
-      `;
+      const theme = this.currentTheme;
+      textarea.style.cssText = `flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:${theme.textarea};color:${theme.text};padding:16px;border:none!important;outline:none!important;resize:none;border-radius:4px;font-size:14px;line-height:1.5`;
       textarea.value = this.originalContent;
       return textarea;
     }
@@ -108,17 +74,8 @@
     createButton(text, isPrimary = false) {
       const button = document.createElement("button");
       button.textContent = text;
-      button.style.cssText = `
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: opacity 0.2s ease;
-        background: ${isPrimary ? '#376EAD' : 'transparent'};
-        color: ${isPrimary ? '#ffffff' : this.currentTheme.text};
-        opacity: ${isPrimary ? '1' : '0.7'};
-      `;
+      const theme = this.currentTheme;
+      button.style.cssText = `padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-weight:500;transition:opacity 0.2s ease;background:${isPrimary ? '#376EAD' : 'transparent'};color:${isPrimary ? '#ffffff' : theme.text};opacity:${isPrimary ? '1' : '0.7'}`;
       button.onmouseenter = () => button.style.opacity = isPrimary ? '0.8' : '1';
       button.onmouseleave = () => button.style.opacity = isPrimary ? '1' : '0.5';
       return button;
@@ -126,21 +83,16 @@
 
     createButtonContainer() {
       const container = document.createElement("div");
-      container.style.cssText = `
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-      `;
+      container.style.cssText = "display:flex;gap:10px;justify-content:flex-end";
       return container;
     }
 
     handleSave(textarea, modal) {
-      const updateData = {
+      this.devSocket.send({
         type: "markdown_update",
         content: textarea.value,
         originalContent: this.originalContent,
-      };
-      this.devSocket.send(updateData);
+      });
       modal.remove();
     }
 
@@ -161,22 +113,17 @@
       modal.appendChild(editor);
       document.body.appendChild(modal);
 
-      // Focus textarea after modal is shown
       setTimeout(() => textarea.focus(), 0);
     }
 
     initializeEditor() {
       this.element.addEventListener("dblclick", () => this.openEditor());
-
-      // Listen for system theme changes
-      window.matchMedia("(prefers-color-scheme: dark)")
-        .addEventListener("change", (e) => {
-          this.isDarkMode = e.matches;
-        });
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+        this.isDarkMode = e.matches;
+      });
     }
   }
 
-  // Initialize markdown editors after page load
   document.addEventListener("DOMContentLoaded", () => {
     const markdownElements = document.querySelectorAll("div[data-markdown-source]");
     markdownElements.forEach(element => new MarkdownEditor(element));
