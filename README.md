@@ -4,7 +4,7 @@
 > Probably very buggy, it's very opiniated and not extensible.
 
 A simple build tool that assembles a static site from components, templates, and
-data. I used it to build v6 of https://tnixc.space
+data. I used it to build v6 of https://enochlau.com
 
 ## Todo List
 

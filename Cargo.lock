@@ -2028,8 +2028,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
 
 [[package]]
-name = "simple"
-version = "0.3.0"
+name = "simple-web"
+version = "0.3.1"
 dependencies = [
  "color-print",
  "comrak",
