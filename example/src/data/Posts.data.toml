@@ -1,0 +1,8 @@
+# List of markdown files to include as blog posts
+# Files are processed in the order listed here
+
+files = [
+  "my-first-post.md",
+  "getting-started.md",
+  "advanced-features.md"
+]
