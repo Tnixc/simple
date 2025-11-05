@@ -1,7 +1,7 @@
 # Simple Build tool
 
-> [!WARNING] 
-> Probably very buggy, it's very opiniated and not extensible.
+> [!WARNING]
+> Probably very buggy, it's very opinionated and not extensible.
 
 A simple build tool that assembles a static site from components, templates, and
 data. I used it to build v6 of https://enochlau.com
@@ -25,10 +25,6 @@ data. I used it to build v6 of https://enochlau.com
 
 - [ ] Improve JSON parsing error handling
 
-### Markdown and Content
-
-- [ ] LaTex?
-
 ### Errors/Logging
 
 - [ ] Exact file and line in error messages
@@ -44,6 +40,7 @@ data. I used it to build v6 of https://enochlau.com
 
 ### Done
 
+- [x] KaTeX support
 - [x] Handle port collisions in dev server
 - [x] Resolve dual sources of truth for Markdown frontmatter in blog posts (can't fix without proper Markdown parsing into entries)
 - [x] Bi-directional editing: You can now double click on a rendered `<markdown>` element to edit it, and it's reflected in the source code.
@@ -189,7 +186,7 @@ Will render out to:
 <img src="image.webp" alt="alt" />
 ```
 
-> [!NOTE] 
+> [!NOTE]
 > You can double click on a rendered markdown element and edit it from the web. The changes will be reflected in the source file. It is a bit flakely with escaped html entities, so try to avoid using those.
 
 ### Template entries
