@@ -1,5 +1,6 @@
 use crate::dev::{SCRIPT, WS_PORT};
 use crate::error::{ErrorType, ProcessError, WithItem};
+use crate::handlers::frontmatter::extract_frontmatter;
 use crate::handlers::katex_assets;
 use crate::handlers::pages::page;
 use crate::utils::kv_replace;
@@ -69,9 +70,18 @@ pub fn process_entry(
     };
 
     let processed_content = if entry_path.extension().and_then(|s| s.to_str()) == Some("md") {
+        // Strip frontmatter from markdown content before rendering
+        let content_without_frontmatter = match extract_frontmatter(&content) {
+            Ok((_, remaining)) => remaining,
+            Err(_) => {
+                // If frontmatter extraction fails, use content as-is (might not have frontmatter)
+                content.clone()
+            }
+        };
+
         frame_content.replace(
             "${--content}",
-            &("<markdown>\n".to_owned() + &content + "</markdown>"),
+            &("<markdown>\n".to_owned() + &content_without_frontmatter + "</markdown>"),
         )
     } else {
         frame_content.replace("${--content}", &content)
