@@ -74,15 +74,6 @@ The built site will be in `example/dist/`.
 - `dist/content/getting-started.html` - Individual post page
 - `dist/content/advanced-features.html` - Individual post page
 
-## Key Features Demonstrated
-
-✅ YAML frontmatter extraction
-✅ TOML-based file ordering
-✅ Auto-generated paths and links
-✅ Template variable substitution
-✅ Markdown rendering in frames
-✅ Backwards compatibility (can still use `.data.json`)
-
 ## Customization
 
 You can add any fields you want to the frontmatter:
