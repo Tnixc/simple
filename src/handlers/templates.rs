@@ -199,6 +199,12 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
 pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) -> ProcessResult {
     let mut errors = Vec::new();
     let mut output = input;
+
+    // Early return if no templates
+    if !TEMPLATE_REGEX.is_match(&output).unwrap_or(false) {
+        return ProcessResult { output, errors };
+    }
+
     let mut replacements = Vec::new();
 
     for f in TEMPLATE_REGEX.find_iter(&output) {
@@ -214,7 +220,7 @@ pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) ->
 
             let result = get_template(src, template_name, hist.clone());
             errors.extend(result.errors);
-            replacements.push((found_str.to_string(), result.output));
+            replacements.push((found_str.to_owned(), result.output));
         }
     }
 

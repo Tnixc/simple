@@ -158,6 +158,12 @@ pub fn process_component(
 
     let mut errors: Vec<ProcessError> = Vec::new();
     let mut output = input;
+
+    // Early return if no matches
+    if !regex.is_match(&output).unwrap_or(false) {
+        return ProcessResult { output, errors };
+    }
+
     let mut replacements = Vec::new();
 
     for f in regex.find_iter(&output) {
@@ -180,7 +186,7 @@ pub fn process_component(
                 ComponentTypes::SelfClosing => {
                     let result = get_component_self(src, name, targets, hist.clone());
                     errors.extend(result.errors);
-                    replacements.push((found_str.to_string(), result.output));
+                    replacements.push((found_str.to_owned(), result.output));
                 }
                 ComponentTypes::Wrapping => {
                     let end = format!("</{}>", name);
@@ -193,7 +199,7 @@ pub fn process_component(
                         replacements.push((content, String::new()));
                     }
                     replacements.push((end, String::new()));
-                    replacements.push((found_str.to_string(), result.output));
+                    replacements.push((found_str.to_owned(), result.output));
                 }
             }
         }

@@ -43,7 +43,10 @@ fn render_katex(html: &str) -> Result<String, String> {
 
     for captures in MATH_SPAN_REGEX.captures_iter(html) {
         if let Ok(cap) = captures {
-            let mat = cap.get(0).unwrap();
+            let mat = match cap.get(0) {
+                Some(m) => m,
+                None => continue,
+            };
             let start = mat.start();
             let end = mat.end();
 
@@ -51,8 +54,14 @@ fn render_katex(html: &str) -> Result<String, String> {
             result.push_str(&html[last_end..start]);
 
             // Extract math style and content
-            let style = cap.get(1).unwrap().as_str();
-            let latex = cap.get(2).unwrap().as_str();
+            let style = match cap.get(1) {
+                Some(m) => m.as_str(),
+                None => continue,
+            };
+            let latex = match cap.get(2) {
+                Some(m) => m.as_str(),
+                None => continue,
+            };
 
             // Configure KaTeX options
             let opts = Opts::builder()
@@ -90,6 +99,11 @@ fn render_katex(html: &str) -> Result<String, String> {
 }
 
 pub fn render_markdown(input: String) -> String {
+    // Early return if no markdown
+    if !input.contains("</markdown>") {
+        return input;
+    }
+
     let mut plugins = Plugins::default();
     plugins.render.codefence_syntax_highlighter = Some(&*SYNTAX_HIGHLIGHTER);
     let options = create_markdown_options();
@@ -114,7 +128,8 @@ pub fn render_markdown(input: String) -> String {
                 Ok(html) => html,
                 Err(e) => {
                     eprintln!("KaTeX rendering error: {}", e);
-                    std::process::exit(1);
+                    // Return the rendered HTML without KaTeX processing on error
+                    rendered
                 }
             };
 

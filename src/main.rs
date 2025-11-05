@@ -67,7 +67,7 @@ fn build(args: Vec<String>) -> Result<(), Vec<ProcessError>> {
 
     let src = dir.join("src");
 
-    let working_dir = if *IS_DEV.get().unwrap() {
+    let working_dir = if *IS_DEV.get().unwrap_or(&false) {
         "dev"
     } else {
         "dist"

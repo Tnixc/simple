@@ -7,9 +7,8 @@ use crate::handlers::templates::process_template;
 use crate::utils::ProcessResult;
 use crate::IS_DEV;
 use minify_html::minify;
-use std::sync::mpsc;
+use rayon::prelude::*;
 use std::sync::Arc;
-use std::thread;
 use std::{collections::HashSet, fs, path::PathBuf};
 
 fn process_step<F>(
@@ -88,7 +87,6 @@ pub fn process_pages(
     };
 
     let working_dir = if dev { "dev" } else { "dist" };
-    let (sender, receiver) = mpsc::channel();
     let minify_cfg = Arc::new(minify_html::Cfg::spec_compliant());
 
     let mut file_tasks = Vec::new();
@@ -105,37 +103,33 @@ pub fn process_pages(
         }
     }
 
+    // Process directories sequentially
     for (dir, src, source, path) in dir_tasks {
         if let Err(mut errs) = process_pages(&dir, &src, source, path) {
             errors.append(&mut errs);
         }
     }
 
+    // Process files in parallel using rayon
     if !file_tasks.is_empty() {
-        let max_threads = std::cmp::min(file_tasks.len(), num_cpus::get());
-        let chunk_size = (file_tasks.len() + max_threads - 1) / max_threads;
+        let results: Vec<Result<(), Vec<ProcessError>>> = file_tasks
+            .par_iter()
+            .map(|path| {
+                process_single_file(
+                    path.clone(),
+                    dir.clone(),
+                    src.clone(),
+                    working_dir.to_string(),
+                    dev,
+                    Arc::clone(&minify_cfg),
+                )
+            })
+            .collect();
 
-        for chunk in file_tasks.chunks(chunk_size) {
-            for path in chunk {
-                let sender = sender.clone();
-                let dir = dir.clone();
-                let src = src.clone();
-                let path = path.clone();
-                let working_dir = working_dir.to_string();
-                let minify_cfg = Arc::clone(&minify_cfg);
-
-                thread::spawn(move || {
-                    let result = process_single_file(path, dir, src, working_dir, dev, minify_cfg);
-                    sender.send(result).unwrap();
-                });
+        for result in results {
+            if let Err(e) = result {
+                errors.extend(e);
             }
-        }
-    }
-
-    drop(sender);
-    for result in receiver {
-        if let Err(e) = result {
-            errors.extend(e);
         }
     }
 
@@ -171,12 +165,33 @@ fn process_single_file(
     let result = page(&src, file_content, HashSet::new());
     errors.extend(result.errors);
 
-    let out_path = dir.join(&working_dir).join(
-        path.strip_prefix(&src)
-            .unwrap()
-            .strip_prefix("pages")
-            .unwrap(),
-    );
+    let relative_to_src = match path.strip_prefix(&src) {
+        Ok(rel) => rel,
+        Err(e) => {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::File,
+                path: path.clone(),
+                message: Some(format!("Failed to strip src prefix: {}", e)),
+            });
+            return Err(errors);
+        }
+    };
+
+    let relative_to_pages = match relative_to_src.strip_prefix("pages") {
+        Ok(rel) => rel,
+        Err(e) => {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::File,
+                path: path.clone(),
+                message: Some(format!("Failed to strip pages prefix: {}", e)),
+            });
+            return Err(errors);
+        }
+    };
+
+    let out_path = dir.join(&working_dir).join(relative_to_pages);
 
     if let Some(parent) = out_path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
