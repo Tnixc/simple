@@ -193,7 +193,51 @@ Will render out to:
 
 You can also use the template syntax to render entries from files.
 
-Take this `src/data/Posts.data.json`:
+#### Using Frontmatter (Recommended)
+
+Instead of manually maintaining a JSON file, you can extract metadata from YAML frontmatter in your markdown files:
+
+**File structure:**
+```
+src/data/Posts/
+├── my-first-post.md
+├── another-post.md
+└── Posts.data.toml
+```
+
+**`src/data/Posts.data.toml`** - Specifies which files to include and their order:
+```toml
+files = [
+  "my-first-post.md",
+  "another-post.md"
+]
+```
+
+**`src/data/Posts/my-first-post.md`** - Markdown file with YAML frontmatter:
+```markdown
+---
+title: My First Post
+description: This is my first blog post
+date: Jan 1 2025
+---
+
+# Content here
+
+Your markdown content...
+```
+
+The frontmatter will automatically generate the data needed for templating. The following fields are auto-generated:
+- `--entry-path`: Set to the markdown file path
+- `--result-path`: Set to `content/{filename}.html`
+- `link`: Set to `./content/{filename}.html`
+
+All other frontmatter fields (like `title`, `description`, `date`) are available as template variables.
+
+**Required fields:** Only `title` is required in the frontmatter.
+
+#### Using JSON (Legacy)
+
+Alternatively, you can use the older JSON format. Take this `src/data/Posts.data.json`:
 
 ```json
 [
