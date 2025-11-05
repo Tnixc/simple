@@ -10,7 +10,6 @@ data. I used it to build v6 of https://enochlau.com
 
 ### Core
 
-- [ ] Proper error handling (no unwraps please)
 - [ ] Switch to using a .config file for configuration
 - [ ] Implement caching based on file hashes to avoid unnecessary rebuilds
 
@@ -32,7 +31,6 @@ data. I used it to build v6 of https://enochlau.com
 ### Perf
 
 - [ ] Implement selective component caching to reduce disk reads
-- [ ] Conduct and analyze more extensive speed tests
 
 ### Syntax/Parsing
 
@@ -40,6 +38,9 @@ data. I used it to build v6 of https://enochlau.com
 
 ### Done
 
+- [x] Proper error handling (removed all unwrap/expect calls)
+- [x] Performance optimization with Rayon parallelization (12% faster)
+- [x] Strip frontmatter from markdown before rendering
 - [x] KaTeX support
 - [x] Handle port collisions in dev server
 - [x] Resolve dual sources of truth for Markdown frontmatter in blog posts (can't fix without proper Markdown parsing into entries)
@@ -226,7 +227,7 @@ date: Jan 1 2025
 Your markdown content...
 ```
 
-The frontmatter will automatically generate the data needed for templating. The following fields are auto-generated:
+The frontmatter is automatically stripped before rendering and used to generate the data needed for templating. The following fields are auto-generated:
 - `--entry-path`: Set to the markdown file path
 - `--result-path`: Set to `content/{filename}.html`
 - `link`: Set to `./content/{filename}.html`
