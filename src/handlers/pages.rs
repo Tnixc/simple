@@ -1,6 +1,7 @@
 use crate::dev::{SCRIPT, WS_PORT};
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
+use crate::handlers::katex_assets;
 use crate::handlers::markdown::render_markdown;
 use crate::handlers::templates::process_template;
 use crate::utils::ProcessResult;
@@ -155,6 +156,9 @@ fn process_single_file(
 ) -> Result<(), Vec<ProcessError>> {
     let mut errors: Vec<ProcessError> = Vec::new();
 
+    // Reset KaTeX usage flag for this page
+    katex_assets::reset_katex_flag();
+
     let file_content = fs::read_to_string(&path)
         .map_proc_err(WithItem::File, ErrorType::Io, &path, None)
         .inspect_err(|e| errors.push((*e).clone()))
@@ -187,6 +191,20 @@ fn process_single_file(
     }
 
     let mut output = result.output;
+
+    // Inject KaTeX CSS if math was rendered (unless disabled)
+    if katex_assets::was_katex_used() && !katex_assets::is_katex_injection_disabled() {
+        // Print message once
+        katex_assets::print_katex_message();
+
+        // Inject CSS link in <head>
+        if output.contains("<head>") {
+            output = output.replace("<head>", &format!("<head>\n{}", katex_assets::get_katex_css_tag()));
+        } else {
+            // If no <head> tag, prepend to document
+            output = format!("{}\n{}", katex_assets::get_katex_css_tag(), output);
+        }
+    }
 
     if dev {
         let ws_port = *WS_PORT.get().unwrap();
