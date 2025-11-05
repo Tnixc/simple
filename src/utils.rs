@@ -44,12 +44,20 @@ pub fn get_targets_kv<'a>(
     Ok(targets)
 }
 
-pub fn kv_replace(kv: Vec<(&str, &str)>, mut from: String) -> String {
-    for (k, v) in kv {
-        let key = format!("${{{k}}}");
-        from = from.replace(&key, v);
+pub fn kv_replace(kv: Vec<(&str, &str)>, from: String) -> String {
+    if kv.is_empty() {
+        return from;
     }
-    from
+
+    let mut result = from;
+    for (k, v) in kv {
+        if !result.contains(k) {
+            continue;
+        }
+        let key = format!("${{{k}}}");
+        result = result.replace(&key, v);
+    }
+    result
 }
 
 pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
@@ -60,38 +68,37 @@ pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
     if start_pos >= end_index {
         None
     } else {
-        Some(input[start_pos..end_index].to_string())
+        Some(input[start_pos..end_index].to_owned())
     }
 }
 
 pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
     if !dist.exists() {
-        fs::create_dir_all(dist).map_proc_err(File, Io, &PathBuf::from(dist), None)?;
+        fs::create_dir_all(dist).map_proc_err(File, Io, dist, None)?;
     }
 
-    let entries = fs::read_dir(public).map_proc_err(File, Io, &PathBuf::from(public), None)?;
+    let entries = fs::read_dir(public).map_proc_err(File, Io, public, None)?;
 
-    for entry in entries {
-        let entry = entry.unwrap().path();
-        let dest_path = dist.join(entry.strip_prefix(public).unwrap());
+    for entry_result in entries {
+        let entry = entry_result.map_proc_err(File, Io, public, None)?;
+        let entry_path = entry.path();
+        let relative = entry_path
+            .strip_prefix(public)
+            .map_err(|e| ProcessError {
+                error_type: ErrorType::Io,
+                item: File,
+                path: entry_path.clone(),
+                message: Some(format!("Failed to strip prefix: {}", e)),
+            })?;
+        let dest_path = dist.join(relative);
 
-        if entry.is_dir() {
-            copy_into(&entry, &dest_path)?;
+        if entry_path.is_dir() {
+            copy_into(&entry_path, &dest_path)?;
         } else {
             if let Some(parent) = dest_path.parent() {
-                fs::create_dir_all(parent).map_proc_err(
-                    File,
-                    Io,
-                    &PathBuf::from(&dest_path),
-                    None,
-                )?;
+                fs::create_dir_all(parent).map_proc_err(File, Io, &dest_path, None)?;
             }
-            fs::copy(&entry, &dest_path).map_proc_err(
-                File,
-                Io,
-                &PathBuf::from(&dest_path),
-                None,
-            )?;
+            fs::copy(&entry_path, &dest_path).map_proc_err(File, Io, &dest_path, None)?;
         }
     }
     Ok(())
@@ -181,7 +188,7 @@ fn walk_dir_internal(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), Process
 pub fn find_next_available_port(start_port: u16) -> u16 {
     (start_port..65535)
         .find(|port| is_port_available(*port))
-        .expect("No available ports found")
+        .unwrap_or(start_port)
 }
 
 fn is_port_available(port: u16) -> bool {
