@@ -1,6 +1,7 @@
 mod handlers {
     pub mod components;
     pub mod entries;
+    pub mod katex_assets;
     pub mod markdown;
     pub mod pages;
     pub mod templates;
