@@ -1,5 +1,6 @@
 use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::entries::process_entry;
+use crate::handlers::frontmatter::load_frontmatter_data;
 use crate::handlers::pages::page;
 use crate::utils::kv_replace;
 use crate::utils::ProcessResult;
@@ -47,36 +48,67 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
         .inspect_err(|e| errors.push((*e).clone()))
         .unwrap_or_else(|_| String::new());
 
-    let data = fs::read_to_string(&data_path)
-        .map_proc_err(
-            WithItem::Data,
-            ErrorType::Io,
-            &data_path,
-            Some("Failed to read data file".to_string()),
-        )
-        .inspect_err(|e| errors.push((*e).clone()))
-        .unwrap_or_else(|_| String::new());
-
-    if template.is_empty() || data.is_empty() {
+    if template.is_empty() {
         return ProcessResult {
             output: String::new(),
             errors,
         };
     }
 
-    let v: Value = match serde_json::from_str(&data) {
-        Ok(value) => value,
-        Err(e) => {
-            errors.push(ProcessError {
-                error_type: ErrorType::Syntax,
-                item: WithItem::Data,
-                path: data_path,
-                message: Some(format!("JSON decode error: {}", e)),
-            });
+    // Try to load from .toml + frontmatter first, fall back to .json
+    let toml_path = src
+        .join("data")
+        .join(name.replace(":", "/"))
+        .with_extension("data.toml");
+
+    let v: Value = if toml_path.exists() {
+        // Use frontmatter-based loading
+        match load_frontmatter_data(src, name) {
+            Ok((value, fm_errors)) => {
+                errors.extend(fm_errors);
+                value
+            }
+            Err(fm_errors) => {
+                errors.extend(fm_errors);
+                return ProcessResult {
+                    output: String::new(),
+                    errors,
+                };
+            }
+        }
+    } else {
+        // Fall back to JSON loading
+        let data = fs::read_to_string(&data_path)
+            .map_proc_err(
+                WithItem::Data,
+                ErrorType::Io,
+                &data_path,
+                Some("Failed to read data file".to_string()),
+            )
+            .inspect_err(|e| errors.push((*e).clone()))
+            .unwrap_or_else(|_| String::new());
+
+        if data.is_empty() {
             return ProcessResult {
                 output: String::new(),
                 errors,
             };
+        }
+
+        match serde_json::from_str(&data) {
+            Ok(value) => value,
+            Err(e) => {
+                errors.push(ProcessError {
+                    error_type: ErrorType::Syntax,
+                    item: WithItem::Data,
+                    path: data_path,
+                    message: Some(format!("JSON decode error: {}", e)),
+                });
+                return ProcessResult {
+                    output: String::new(),
+                    errors,
+                };
+            }
         }
     };
 
