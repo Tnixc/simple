@@ -23,6 +23,6 @@ serde_json = "1.0.120"
 simple-websockets = "0.1.6"
 
 [[bin]]
-name = "replacer"
+name = "simple"
 path = "src/main.rs"
 

@@ -1,5 +1,6 @@
 use crate::dev::{SCRIPT, WS_PORT};
 use crate::error::{ErrorType, ProcessError, WithItem};
+use crate::handlers::katex_assets;
 use crate::handlers::pages::page;
 use crate::utils::kv_replace;
 use crate::IS_DEV;
@@ -15,6 +16,9 @@ pub fn process_entry(
 ) -> Vec<ProcessError> {
     let mut errors: Vec<ProcessError> = Vec::new();
     let is_dev = *IS_DEV.get().unwrap();
+
+    // Reset KaTeX usage flag for this page
+    katex_assets::reset_katex_flag();
 
     if entry_path.is_empty() || result_path.is_empty() {
         return vec![ProcessError {
@@ -90,6 +94,20 @@ pub fn process_entry(
     }
 
     let mut s = page_result.output;
+
+    // Inject KaTeX CSS if math was rendered (unless disabled)
+    if katex_assets::was_katex_used() && !katex_assets::is_katex_injection_disabled() {
+        // Print message once
+        katex_assets::print_katex_message();
+
+        // Inject CSS link in <head>
+        if s.contains("<head>") {
+            s = s.replace("<head>", &format!("<head>\n{}", katex_assets::get_katex_css_tag()));
+        } else {
+            // If no <head> tag, prepend to document
+            s = format!("{}\n{}", katex_assets::get_katex_css_tag(), s);
+        }
+    }
 
     if is_dev && !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
         s = s.replace("<head>", &format!("<head>{}", SCRIPT));
