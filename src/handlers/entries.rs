@@ -16,7 +16,7 @@ pub fn process_entry(
     kv: Vec<(&str, &str)>,
 ) -> Vec<ProcessError> {
     let mut errors: Vec<ProcessError> = Vec::new();
-    let is_dev = *IS_DEV.get().unwrap();
+    let is_dev = *IS_DEV.get().unwrap_or(&false);
 
     // Reset KaTeX usage flag for this page
     katex_assets::reset_katex_flag();
@@ -37,9 +37,21 @@ pub fn process_entry(
         .join("templates")
         .join(name.replace(":", "/"))
         .with_extension("frame.html");
-    let result_path = src
-        .parent()
-        .unwrap()
+
+    let src_parent = match src.parent() {
+        Some(p) => p,
+        None => {
+            errors.push(ProcessError {
+                error_type: ErrorType::Io,
+                item: WithItem::File,
+                path: src.clone(),
+                message: Some("Source directory has no parent".to_string()),
+            });
+            return errors;
+        }
+    };
+
+    let result_path = src_parent
         .join(if is_dev { "dev" } else { "dist" })
         .join(result_path.trim_start_matches("/"));
 
@@ -121,10 +133,9 @@ pub fn process_entry(
 
     if is_dev && !s.contains("// * SCRIPT INCLUDED IN DEV MODE") {
         s = s.replace("<head>", &format!("<head>{}", SCRIPT));
-        s = s.replace(
-            "__SIMPLE_WS_PORT_PLACEHOLDER__",
-            &WS_PORT.get().unwrap().to_string(),
-        );
+        if let Some(ws_port) = WS_PORT.get() {
+            s = s.replace("__SIMPLE_WS_PORT_PLACEHOLDER__", &ws_port.to_string());
+        }
     }
 
     let output = minify(&s.into_bytes(), &minify_html::Cfg::spec_compliant());

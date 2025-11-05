@@ -14,7 +14,6 @@ use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use WithItem::None;
 
 pub static WS_PORT: OnceCell<u16> = OnceCell::new();
 pub const SCRIPT: &str = include_str!("./inline_script.html");
@@ -30,7 +29,7 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<Proc
         }
         Err(e) => Err(vec![ProcessError {
             error_type: ErrorType::Other,
-            item: None,
+            item: WithItem::None,
             path: PathBuf::from("Watcher"),
             message: Some(format!("{e} (internal watcher error)")),
         }]),
@@ -39,14 +38,25 @@ fn dev_rebuild(res: Result<notify::Event, notify::Error>) -> Result<(), Vec<Proc
 
 fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u16) {
     let clients: Arc<Mutex<HashMap<u64, Responder>>> = Arc::new(Mutex::new(HashMap::new()));
-    let event_hub = simple_websockets::launch(ws_port)
-        .unwrap_or_else(|_| panic!("failed to listen on port {}", ws_port));
+    let event_hub = match simple_websockets::launch(ws_port) {
+        Ok(hub) => hub,
+        Err(e) => {
+            eprintln!("Failed to launch websocket server on port {}: {:?}", ws_port, e);
+            return;
+        }
+    };
 
     // Spawn thread to handle messages from receiver
     let clients_clone = Arc::clone(&clients);
     thread::spawn(move || loop {
-        let message = receiver.recv().unwrap();
-        let locked_clients = clients_clone.lock().unwrap();
+        let message = match receiver.recv() {
+            Ok(msg) => msg,
+            Err(_) => return, // Channel closed, exit thread
+        };
+        let locked_clients = match clients_clone.lock() {
+            Ok(c) => c,
+            Err(_) => return, // Mutex poisoned, exit thread
+        };
 
         let json = serde_json::json!({
             "message": if message == "reload" { "reload" } else { &message }
@@ -62,13 +72,15 @@ fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u1
     loop {
         match event_hub.poll_event() {
             Event::Connect(client_id, responder) => {
-                let mut locked_clients = clients.lock().unwrap();
-                locked_clients.insert(client_id, responder);
+                if let Ok(mut locked_clients) = clients.lock() {
+                    locked_clients.insert(client_id, responder);
+                }
             }
 
             Event::Disconnect(client_id) => {
-                let mut locked_clients = clients.lock().unwrap();
-                locked_clients.remove(&client_id);
+                if let Ok(mut locked_clients) = clients.lock() {
+                    locked_clients.remove(&client_id);
+                }
             }
 
             Event::Message(_, msg) => {
@@ -84,8 +96,14 @@ fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u1
 
 fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
     if json["type"] == "markdown_update" {
-        let content = json["content"].as_str().unwrap().trim();
-        let original = json["originalContent"].as_str().unwrap().trim();
+        let content = match json["content"].as_str() {
+            Some(s) => s.trim(),
+            None => return,
+        };
+        let original = match json["originalContent"].as_str() {
+            Some(s) => s.trim(),
+            None => return,
+        };
         if let Ok(files) = utils::walk_dir(src) {
             for path in files {
                 if let Ok(file_content) = fs::read_to_string(&path) {
@@ -143,38 +161,44 @@ pub fn spawn_watcher(args: Vec<String>) {
         .with_compare_contents(true)
         .with_poll_interval(Duration::from_millis(200));
 
-    let mut watcher = notify::PollWatcher::new(
+    let mut watcher = match notify::PollWatcher::new(
         move |res| {
             let result = dev_rebuild(res);
             if result.is_ok() {
-                let send = sender.send("reload".to_string());
-                if send.is_err() {
-                    let e = send.unwrap_err();
+                if let Err(e) = sender.send("reload".to_string()) {
                     cprintln!("<s><y>Warning: failed to send reload signal: </></>: {e}");
                 }
-            } else {
-                let e = result.unwrap_err();
+            } else if let Err(e) = result {
                 let _ = sender.send(utils::format_errs(&e));
                 utils::print_vec_errs(&e);
             }
         },
         config,
-    )
-    .unwrap();
+    ) {
+        Ok(w) => w,
+        Err(e) => {
+            eprintln!("Failed to create watcher: {}", e);
+            return;
+        }
+    };
 
-    watcher
-        .watch(&src, RecursiveMode::Recursive)
-        .expect("watch failed");
+    if let Err(e) = watcher.watch(&src, RecursiveMode::Recursive) {
+        eprintln!("Failed to watch directory: {}", e);
+        return;
+    }
 
     let preview_addr = format!("0.0.0.0:{}", preview_port);
 
     rouille::start_server(preview_addr, move |request| {
         {
-            let mut response = rouille::match_assets(request, dist.to_str().unwrap());
+            let dist_str = match dist.to_str() {
+                Some(s) => s,
+                None => return Response::html("500 Internal Server Error").with_status_code(500),
+            };
+            let mut response = rouille::match_assets(request, dist_str);
             if request.url() == "/" {
-                let f = fs::File::open(dist.join("index").with_extension("html"));
-                if f.is_ok() {
-                    response = Response::from_file("text/html", f.unwrap());
+                if let Ok(f) = fs::File::open(dist.join("index").with_extension("html")) {
+                    response = Response::from_file("text/html", f);
                 }
             }
             if response.is_success() {

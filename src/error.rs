@@ -47,11 +47,10 @@ impl fmt::Display for ProcessError {
             Some(msg) => cformat!("<strong>{msg}</>"),
             None => String::new(),
         };
-        let path = &self
+        let path = self
             .path
             .to_str()
-            .to_owned()
-            .expect("Couldn't turn PathBuf into string whilst formatting error message.");
+            .unwrap_or("<invalid-utf8-path>");
         let err_msg = match self.error_type {
             ErrorType::Io => {
                 cformat!("The {item} <r>{path}</> encountered an IO error. {msg_fmt}")
@@ -98,11 +97,7 @@ impl<T, E: std::fmt::Display> MapProcErr<T, E> for Result<T, E> {
         message: Option<String>,
     ) -> Result<T, ProcessError> {
         self.map_err(|e| {
-            let msg = if message.is_some() {
-                message.unwrap()
-            } else {
-                format!("{}", e)
-            };
+            let msg = message.unwrap_or_else(|| format!("{}", e));
             ProcessError {
                 error_type,
                 item,
