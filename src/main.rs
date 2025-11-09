@@ -24,6 +24,14 @@ pub static IS_DEV: OnceCell<bool> = OnceCell::new();
 fn main() {
     let args: Vec<String> = env::args().collect();
 
+    // Handle --version flag
+    if args.len() > 1 && (args[1] == "--version" || args[1] == "-v") {
+        let version = env!("CARGO_PKG_VERSION");
+        let git_hash = env!("GIT_HASH");
+        println!("simple {} ({})", version, git_hash);
+        return;
+    }
+
     if args.len() < 3 {
         eprintln!(
             "{}",
