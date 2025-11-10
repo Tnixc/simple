@@ -22,7 +22,7 @@ data. I used it to build v6 of https://enochlau.com
 
 ### Data
 
-- [ ] Improve JSON parsing error handling
+- [ ] Improve data parsing error handling
 
 ### Errors/Logging
 
@@ -69,32 +69,29 @@ data. I used it to build v6 of https://enochlau.com
 
 ## File structure
 
+
 ```
 src
-├── components
-│   ├── Common
-│   │   └── Pill.component.html
-│   └── PostLayout.component.html
 ├── data
-│   └── Projects.data.json
+│   ├── a.md
+│   ├── Posts
+│   │   ├── advanced-features.md
+│   │   ├── getting-started.md
+│   │   └── my-first-post.md
+│   └── Posts.data.toml
 ├── pages
-│   ├── content
-│   │   └── about.html
-│   └── index.html
+│   └── index.html
 ├── public
-│   ├── assets
-│   │   └── image.webp
-│   ├── favicon.png
-│   ├── fonts
-│   │   └── Inter.woff2
-│   ├── input.css
-│   └── output.css
+│   ├── assets
+│   │   └── image.webp
+│   ├── favicon.png
+│   └── styles.css
 └── templates
-    └── Projects.template.html
+    ├── Posts.frame.html
+    └── Posts.template.html
 ```
 
-To use the above, you would run the following command, where target contains a
-folder `src`.
+To use the above, you would run the following command, where target contains a folder `src`.
 
 ```
 simple <build|dev|new> /path/to/target
@@ -137,36 +134,63 @@ Which will be accessible in the component as `${prop}`.
 ```
 
 Think of this like a `for each`, where `Name` will be used to search for
-`src/data/Name.data.json` to populate instances of
+`src/data/Name.data.toml` to populate instances of
 `src/templates/Name.template.html`
 
 Below is an example of a template file:
 
 ```html
-<!-- Posts.template.json -->
-<a class="bg-neutral-400/20 p-4 block post relative group" href="${link}">
-  <h1 class="font-grotesk text-2xl">${title}</h1>
-  <p class="text-neutral-700 pt-1">Published ${date}</p>
-  <p class="text-neutral-700 pt-3">${description}</p>
-</a>
+<!-- Posts.template.html -->
+<article class="post-card">
+  <a href="${link}">
+    <h2>${title}</h2>
+    <p class="meta">
+      <span class="date">${date}</span>
+      <span class="author">by ${author}</span>
+    </p>
+    <p class="description">${description}</p>
+  </a>
+</article>
 ```
 
-Note the `${}` items. They will match with the following in `Posts.data.json`
+Note the `${}` items. These are template variables that get populated from your data source.
 
-```json
-[
-    {
-        "title": "Title",
-        "description": "desc",
-        "link": "./content/simple.html",
-        "date": "dd/mm/yyyy"
-    },
-    {...}
+### Using TOML with Frontmatter (Recommended)
+
+The recommended approach is to use TOML to specify which markdown files to include, and extract metadata from YAML frontmatter in those files.
+
+**`src/data/Posts.data.toml`** - Specifies which files to include and their order:
+```toml
+# List of markdown files to include as blog posts
+files = [
+  "my-first-post.md",
+  "getting-started.md",
+  "advanced-features.md"
 ]
 ```
 
-The `data.json` file must contain an array of objects with the keys for the
-template.
+**`src/data/Posts/my-first-post.md`** - Markdown file with YAML frontmatter:
+```markdown
+---
+title: My First Blog Post
+description: Welcome to my new blog!
+date: Jan 15 2025
+author: John Doe
+---
+
+# Your Content Here
+
+Your markdown content...
+```
+
+The frontmatter is automatically stripped before rendering and used to generate the data for templating. The following fields are auto-generated:
+- `--entry-path`: Set to the markdown file path
+- `--result-path`: Set to `content/{filename}.html`
+- `link`: Set to `./content/{filename}.html`
+
+All other frontmatter fields (like `title`, `description`, `date`, `author`) are available as template variables.
+
+**Required fields:** Only `title` is required in the frontmatter.
 
 ## The `<markdown>` component
 
@@ -190,81 +214,11 @@ Will render out to:
 > [!NOTE]
 > You can double click on a rendered markdown element and edit it from the web. The changes will be reflected in the source file. It is a bit flakely with escaped html entities, so try to avoid using those.
 
-### Template entries
+### Frame Files
 
-You can also use the template syntax to render entries from files.
+When using markdown files with frontmatter as shown above, the program will look for a frame file at `src/templates/Posts.frame.html` to wrap the rendered content. Inside the frame file, the string `${--content}` will be replaced with the rendered markdown content.
 
-#### Using Frontmatter (Recommended)
-
-Instead of manually maintaining a JSON file, you can extract metadata from YAML frontmatter in your markdown files:
-
-**File structure:**
-```
-src/data/Posts/
-├── my-first-post.md
-├── another-post.md
-└── Posts.data.toml
-```
-
-**`src/data/Posts.data.toml`** - Specifies which files to include and their order:
-```toml
-files = [
-  "my-first-post.md",
-  "another-post.md"
-]
-```
-
-**`src/data/Posts/my-first-post.md`** - Markdown file with YAML frontmatter:
-```markdown
----
-title: My First Post
-description: This is my first blog post
-date: Jan 1 2025
----
-
-# Content here
-
-Your markdown content...
-```
-
-The frontmatter is automatically stripped before rendering and used to generate the data needed for templating. The following fields are auto-generated:
-- `--entry-path`: Set to the markdown file path
-- `--result-path`: Set to `content/{filename}.html`
-- `link`: Set to `./content/{filename}.html`
-
-All other frontmatter fields (like `title`, `description`, `date`) are available as template variables.
-
-**Required fields:** Only `title` is required in the frontmatter.
-
-#### Using JSON (Legacy)
-
-Alternatively, you can use the older JSON format. Take this `src/data/Posts.data.json`:
-
-```json
-[
-    {
-        "link": "./content/simple.html",
-        "date": "dd/mm/yyyy",
-        "--entry-path": "content/simple.md"
-        "--result-path": "content/simple.html"
-    },
-    {...}
-]
-```
-
-The keys starting with `--` are special. The `entry-path` key is the path to the
-file to be rendered, the base path is `src/data`. The `result-path` is the path
-to the file to be written to.
-
-If the key `--entry-path` or `--result-path` is present, the program will look
-for the file `src/templates/Posts.frame.html` and render the entry using that
-frame file. Inside that frame file, the string `${--content}` will be inlined as
-rendered markdown if the `--entry-path` is a markdown file, or the file contents
-if it is not a markdown file. Note that the key-value pairs in the object will
-work on both the rendered entry file AND the template file. The idea is that you
-can use one template for both the table of contents and the individual pages.
-
-**If either of these keys are present, the other one must also be present.**
+The frame file can use any of the frontmatter variables (like `${title}`, `${date}`, etc.) as well as the special `${--content}` variable. This allows you to create a consistent layout for all your blog posts while keeping the content in separate markdown files.
 
 ### Syntax highlighting
 
