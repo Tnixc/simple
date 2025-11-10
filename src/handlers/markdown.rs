@@ -1,6 +1,6 @@
 use comrak::markdown_to_html_with_plugins;
 use comrak::plugins::syntect::SyntectAdapterBuilder;
-use comrak::{Options, Plugins};
+use comrak::{Options, options::Plugins};
 use fancy_regex::Regex;
 use katex::{Opts, OutputType};
 use once_cell::sync::Lazy;
@@ -32,7 +32,7 @@ fn create_markdown_options() -> Options<'static> {
     options.extension.autolink = true;
     options.extension.table = true;
     options.extension.tasklist = true;
-    options.render.unsafe_ = true;
+    options.render.r#unsafe = true;
     options
 }
 

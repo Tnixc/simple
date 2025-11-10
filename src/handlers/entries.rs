@@ -138,7 +138,7 @@ pub fn process_entry(
         }
     }
 
-    let output = minify(&s.into_bytes(), &minify_html::Cfg::spec_compliant());
+    let output = minify(&s.into_bytes(), &minify_html::Cfg::new());
 
     match fs::write(&result_path, &output) {
         Ok(_) => (),

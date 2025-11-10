@@ -87,7 +87,7 @@ pub fn process_pages(
     };
 
     let working_dir = if dev { "dev" } else { "dist" };
-    let minify_cfg = Arc::new(minify_html::Cfg::spec_compliant());
+    let minify_cfg = Arc::new(minify_html::Cfg::new());
 
     let mut file_tasks = Vec::new();
     let mut dir_tasks = Vec::new();
