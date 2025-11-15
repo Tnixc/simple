@@ -32,6 +32,8 @@ fn create_markdown_options() -> Options<'static> {
     options.extension.autolink = true;
     options.extension.table = true;
     options.extension.tasklist = true;
+    options.extension.footnotes = true;
+    options.extension.highlight = true;
     options.render.r#unsafe = true;
     options
 }
