@@ -1,0 +1,6 @@
+#pragma once
+
+namespace simple {
+    constexpr auto VERSION = "@PROJECT_VERSION@";
+    constexpr auto GIT_HASH = "@GIT_HASH@";
+}
