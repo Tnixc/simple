@@ -10,7 +10,7 @@ use serde_json::Value;
 use std::{collections::HashSet, fs, path::PathBuf, str};
 
 static TEMPLATE_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?<!<!--)<-Template\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#)
+    Regex::new(r#"(?<!<!--)<::Template\{([A-Z][A-Za-z_]*(:[A-Z][A-Za-z_]*)*)\}\s*\/>(?!.*?-->)"#)
         .expect("Regex failed to parse. This shouldn't happen.")
 });
 
@@ -212,7 +212,7 @@ pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) ->
             let found_str = found.as_str();
             let template_name = found_str
                 .trim()
-                .strip_prefix("<-Template{")
+                .strip_prefix("<::Template{")
                 .and_then(|s| s.strip_suffix("/>"))
                 .unwrap_or("")
                 .trim()

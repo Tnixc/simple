@@ -130,7 +130,7 @@ Which will be accessible in the component as `${prop}`.
 
 ```html
 <!-- e.g. in index.html -->
-<-Template{Name} />
+<::Template{Name} />
 ```
 
 Think of this like a `for each`, where `Name` will be used to search for
