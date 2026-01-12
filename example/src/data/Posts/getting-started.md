@@ -45,7 +45,7 @@ Create a file at `src/pages/index.html`:
 </head>
 <body>
   <h1>Hello World!</h1>
-  <-Template{Posts} />
+  <::Template{Posts} />
 </body>
 </html>
 ```

@@ -51,7 +51,7 @@ example/
 
 4. **Frame file**: `Posts.frame.html` defines the layout for individual post pages
 
-5. **Index page**: `index.html` uses `<-Template{Posts} />` to render all posts
+5. **Index page**: `index.html` uses `<::Template{Posts} />` to render all posts
 
 ## Building
 
