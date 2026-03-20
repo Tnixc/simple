@@ -27,16 +27,29 @@ pub fn get_targets_kv<'a>(
         .trim_end_matches("/>");
 
     for item in KV_REGEX.find_iter(trimmed) {
-        if let Ok(item) = item {
-            if let Some((k, mut v)) = item.as_str().split_once('=') {
-                v = v.trim_matches(|c| c == '\'' || c == '"');
-                targets.push((k, v));
-            } else {
+        match item {
+            Ok(item) => {
+                if let Some((k, mut v)) = item.as_str().split_once('=') {
+                    v = v.trim_matches(|c| c == '\'' || c == '"');
+                    targets.push((k, v));
+                } else {
+                    return Err(ProcessError {
+                        error_type: ErrorType::Syntax,
+                        item: WithItem::Component,
+                        path: PathBuf::from(name),
+                        message: Some("Couldn't split key-value pair.".to_string()),
+                    });
+                }
+            }
+            Err(e) => {
                 return Err(ProcessError {
-                    error_type: ErrorType::Syntax,
+                    error_type: ErrorType::Other,
                     item: WithItem::Component,
                     path: PathBuf::from(name),
-                    message: Some("Couldn't split key-value pair.".to_string()),
+                    message: Some(format!(
+                        "Regex error while parsing key-value attributes: {}",
+                        e
+                    )),
                 });
             }
         }
@@ -73,6 +86,10 @@ pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
 }
 
 pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
+    if !public.exists() {
+        return Ok(());
+    }
+
     if !dist.exists() {
         fs::create_dir_all(dist).map_proc_err(File, Io, dist, None)?;
     }
@@ -82,14 +99,12 @@ pub fn copy_into(public: &PathBuf, dist: &PathBuf) -> Result<(), ProcessError> {
     for entry_result in entries {
         let entry = entry_result.map_proc_err(File, Io, public, None)?;
         let entry_path = entry.path();
-        let relative = entry_path
-            .strip_prefix(public)
-            .map_err(|e| ProcessError {
-                error_type: ErrorType::Io,
-                item: File,
-                path: entry_path.clone(),
-                message: Some(format!("Failed to strip prefix: {}", e)),
-            })?;
+        let relative = entry_path.strip_prefix(public).map_err(|e| ProcessError {
+            error_type: ErrorType::Io,
+            item: File,
+            path: entry_path.clone(),
+            message: Some(format!("Failed to strip prefix: {}", e)),
+        })?;
         let dest_path = dist.join(relative);
 
         if entry_path.is_dir() {

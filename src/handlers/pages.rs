@@ -1,5 +1,5 @@
 use crate::dev::{SCRIPT, WS_PORT};
-use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
+use crate::error::{errors_to_html, ErrorType, MapProcErr, ProcessError, WithItem};
 use crate::handlers::components::{process_component, ComponentTypes};
 use crate::handlers::katex_assets;
 use crate::handlers::markdown::render_markdown;
@@ -29,7 +29,9 @@ pub fn page(src: &PathBuf, mut string: String, hist: HashSet<PathBuf>) -> Proces
     let mut errors: Vec<ProcessError> = Vec::new();
 
     if string.contains("</markdown>") {
-        string = render_markdown(string);
+        let md_result = render_markdown(string);
+        string = md_result.output;
+        errors.extend(md_result.errors);
     }
 
     process_step(
@@ -93,12 +95,22 @@ pub fn process_pages(
     let mut dir_tasks = Vec::new();
 
     for entry in entries {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if path.is_dir() {
-                dir_tasks.push((dir.clone(), src.clone(), source.join(&path), path));
-            } else {
-                file_tasks.push(path);
+        match entry {
+            Ok(entry) => {
+                let path = entry.path();
+                if path.is_dir() {
+                    dir_tasks.push((dir.clone(), src.clone(), source.join(&path), path));
+                } else {
+                    file_tasks.push(path);
+                }
+            }
+            Err(e) => {
+                errors.push(ProcessError {
+                    error_type: ErrorType::Io,
+                    item: WithItem::File,
+                    path: pages.clone(),
+                    message: Some(format!("Failed to read directory entry: {}", e)),
+                });
             }
         }
     }
@@ -112,24 +124,23 @@ pub fn process_pages(
 
     // Process files in parallel using rayon
     if !file_tasks.is_empty() {
-        let results: Vec<Result<(), Vec<ProcessError>>> = file_tasks
+        let results: Vec<(Vec<ProcessError>,)> = file_tasks
             .par_iter()
             .map(|path| {
-                process_single_file(
+                let errs = process_single_file(
                     path.clone(),
                     dir.clone(),
                     src.clone(),
                     working_dir.to_string(),
                     dev,
                     Arc::clone(&minify_cfg),
-                )
+                );
+                (errs,)
             })
             .collect();
 
-        for result in results {
-            if let Err(e) = result {
-                errors.extend(e);
-            }
+        for (errs,) in results {
+            errors.extend(errs);
         }
     }
 
@@ -140,6 +151,9 @@ pub fn process_pages(
     }
 }
 
+/// Process a single page file. Always returns collected errors (may be empty).
+/// In dev mode, writes an error page if there are errors.
+/// In build mode, skips writing the file if there are errors.
 fn process_single_file(
     path: PathBuf,
     dir: PathBuf,
@@ -147,51 +161,43 @@ fn process_single_file(
     working_dir: String,
     dev: bool,
     minify_cfg: Arc<minify_html::Cfg>,
-) -> Result<(), Vec<ProcessError>> {
+) -> Vec<ProcessError> {
     let mut errors: Vec<ProcessError> = Vec::new();
 
     // Reset KaTeX usage flag for this page
     katex_assets::reset_katex_flag();
 
-    let file_content = fs::read_to_string(&path)
-        .map_proc_err(WithItem::File, ErrorType::Io, &path, None)
-        .inspect_err(|e| errors.push((*e).clone()))
-        .unwrap_or_else(|_| String::new());
+    let file_content =
+        match fs::read_to_string(&path).map_proc_err(WithItem::File, ErrorType::Io, &path, None) {
+            Ok(content) => content,
+            Err(e) => {
+                errors.push(e);
+                write_error_page_if_dev(dev, &errors, &dir, &src, &path, &working_dir);
+                return errors;
+            }
+        };
 
-    if file_content.is_empty() && !errors.is_empty() {
-        return Err(errors);
+    if file_content.is_empty() {
+        errors.push(ProcessError {
+            error_type: ErrorType::Other,
+            item: WithItem::File,
+            path: path.clone(),
+            message: Some("Page file is empty".to_string()),
+        });
+        write_error_page_if_dev(dev, &errors, &dir, &src, &path, &working_dir);
+        return errors;
     }
 
     let result = page(&src, file_content, HashSet::new());
     errors.extend(result.errors);
 
-    let relative_to_src = match path.strip_prefix(&src) {
-        Ok(rel) => rel,
+    let out_path = match resolve_out_path(&path, &dir, &src, &working_dir) {
+        Ok(p) => p,
         Err(e) => {
-            errors.push(ProcessError {
-                error_type: ErrorType::Io,
-                item: WithItem::File,
-                path: path.clone(),
-                message: Some(format!("Failed to strip src prefix: {}", e)),
-            });
-            return Err(errors);
+            errors.push(e);
+            return errors;
         }
     };
-
-    let relative_to_pages = match relative_to_src.strip_prefix("pages") {
-        Ok(rel) => rel,
-        Err(e) => {
-            errors.push(ProcessError {
-                error_type: ErrorType::Io,
-                item: WithItem::File,
-                path: path.clone(),
-                message: Some(format!("Failed to strip pages prefix: {}", e)),
-            });
-            return Err(errors);
-        }
-    };
-
-    let out_path = dir.join(&working_dir).join(relative_to_pages);
 
     if let Some(parent) = out_path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
@@ -201,22 +207,32 @@ fn process_single_file(
                 path: out_path.clone(),
                 message: Some(format!("Failed to create directory: {}", e)),
             });
-            return Err(errors);
+            return errors;
         }
+    }
+
+    // If there are errors: dev → error page, build → skip
+    if !errors.is_empty() {
+        if dev {
+            let dev_script = make_dev_script();
+            let error_html = errors_to_html(&errors, dev_script.as_deref());
+            let _ = fs::write(&out_path, error_html.as_bytes());
+        }
+        return errors;
     }
 
     let mut output = result.output;
 
     // Inject KaTeX CSS if math was rendered (unless disabled)
     if katex_assets::was_katex_used() && !katex_assets::is_katex_injection_disabled() {
-        // Print message once
         katex_assets::print_katex_message();
 
-        // Inject CSS link in <head>
         if output.contains("<head>") {
-            output = output.replace("<head>", &format!("<head>\n{}", katex_assets::get_katex_css_tag()));
+            output = output.replace(
+                "<head>",
+                &format!("<head>\n{}", katex_assets::get_katex_css_tag()),
+            );
         } else {
-            // If no <head> tag, prepend to document
             output = format!("{}\n{}", katex_assets::get_katex_css_tag(), output);
         }
     }
@@ -235,16 +251,67 @@ fn process_single_file(
         minify(output.as_bytes(), &minify_cfg)
     };
 
-    match fs::write(&out_path, &to_write) {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            errors.push(ProcessError {
-                error_type: ErrorType::Io,
-                item: WithItem::File,
-                path: out_path,
-                message: Some(format!("Failed to write file: {}", e)),
-            });
-            Err(errors)
+    if let Err(e) = fs::write(&out_path, &to_write) {
+        errors.push(ProcessError {
+            error_type: ErrorType::Io,
+            item: WithItem::File,
+            path: out_path,
+            message: Some(format!("Failed to write file: {}", e)),
+        });
+    }
+
+    errors
+}
+
+fn resolve_out_path(
+    path: &PathBuf,
+    dir: &PathBuf,
+    src: &PathBuf,
+    working_dir: &str,
+) -> Result<PathBuf, ProcessError> {
+    let relative_to_src = path.strip_prefix(src).map_err(|e| ProcessError {
+        error_type: ErrorType::Io,
+        item: WithItem::File,
+        path: path.clone(),
+        message: Some(format!("Failed to strip src prefix: {}", e)),
+    })?;
+
+    let relative_to_pages = relative_to_src
+        .strip_prefix("pages")
+        .map_err(|e| ProcessError {
+            error_type: ErrorType::Io,
+            item: WithItem::File,
+            path: path.clone(),
+            message: Some(format!("Failed to strip pages prefix: {}", e)),
+        })?;
+
+    Ok(dir.join(working_dir).join(relative_to_pages))
+}
+
+fn make_dev_script() -> Option<String> {
+    let ws_port = WS_PORT.get()?;
+    Some(SCRIPT.replace("__SIMPLE_WS_PORT_PLACEHOLDER__", &ws_port.to_string()))
+}
+
+/// In dev mode, attempt to write an error page for the given source path.
+/// Best-effort — if path resolution fails, this is a no-op.
+fn write_error_page_if_dev(
+    dev: bool,
+    errors: &[ProcessError],
+    dir: &PathBuf,
+    src: &PathBuf,
+    path: &PathBuf,
+    working_dir: &str,
+) {
+    if !dev {
+        return;
+    }
+    if let Ok(out_path) = resolve_out_path(path, dir, src, working_dir) {
+        if let Some(parent) = out_path.parent() {
+            let _ = fs::create_dir_all(parent);
         }
+        let dev_script = make_dev_script();
+        let error_html = errors_to_html(errors, dev_script.as_deref());
+        let _ = fs::write(&out_path, error_html.as_bytes());
     }
 }

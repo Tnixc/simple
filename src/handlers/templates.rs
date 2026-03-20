@@ -38,17 +38,28 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
         };
     }
 
-    let template = fs::read_to_string(&template_path)
-        .map_proc_err(
-            WithItem::Template,
-            ErrorType::Io,
-            &template_path,
-            Some("Failed to read template file".to_string()),
-        )
-        .inspect_err(|e| errors.push((*e).clone()))
-        .unwrap_or_else(|_| String::new());
+    let template = match fs::read_to_string(&template_path).map_proc_err(
+        WithItem::Template,
+        ErrorType::Io,
+        &template_path,
+        Some("Failed to read template file".to_string()),
+    ) {
+        Ok(content) => content,
+        Err(e) => {
+            return ProcessResult {
+                output: String::new(),
+                errors: vec![e],
+            };
+        }
+    };
 
     if template.is_empty() {
+        errors.push(ProcessError {
+            error_type: ErrorType::Other,
+            item: WithItem::Template,
+            path: template_path.clone(),
+            message: Some("Template file is empty".to_string()),
+        });
         return ProcessResult {
             output: String::new(),
             errors,
@@ -78,17 +89,28 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
         }
     } else {
         // Fall back to JSON loading
-        let data = fs::read_to_string(&data_path)
-            .map_proc_err(
-                WithItem::Data,
-                ErrorType::Io,
-                &data_path,
-                Some("Failed to read data file".to_string()),
-            )
-            .inspect_err(|e| errors.push((*e).clone()))
-            .unwrap_or_else(|_| String::new());
+        let data = match fs::read_to_string(&data_path).map_proc_err(
+            WithItem::Data,
+            ErrorType::Io,
+            &data_path,
+            Some("Failed to read data file".to_string()),
+        ) {
+            Ok(content) => content,
+            Err(e) => {
+                return ProcessResult {
+                    output: String::new(),
+                    errors: vec![e],
+                };
+            }
+        };
 
         if data.is_empty() {
+            errors.push(ProcessError {
+                error_type: ErrorType::Other,
+                item: WithItem::Data,
+                path: data_path.clone(),
+                message: Some("Data file is empty".to_string()),
+            });
             return ProcessResult {
                 output: String::new(),
                 errors,
@@ -157,9 +179,10 @@ pub fn get_template(src: &PathBuf, name: &str, mut hist: HashSet<PathBuf>) -> Pr
                         error_type: ErrorType::Syntax,
                         item: WithItem::Data,
                         path: data_path.clone(),
-                        message: Some(
-                            "JSON object value couldn't be decoded to string".to_string(),
-                        ),
+                        message: Some(format!(
+                            "Value for key '{}' couldn't be decoded to string",
+                            key
+                        )),
                     });
                     continue;
                 }
@@ -208,19 +231,42 @@ pub fn process_template(src: &PathBuf, input: String, hist: HashSet<PathBuf>) ->
     let mut replacements = Vec::new();
 
     for f in TEMPLATE_REGEX.find_iter(&output) {
-        if let Ok(found) = f {
-            let found_str = found.as_str();
-            let template_name = found_str
-                .trim()
-                .strip_prefix("<::Template{")
-                .and_then(|s| s.strip_suffix("/>"))
-                .unwrap_or("")
-                .trim()
-                .trim_end_matches('}');
+        match f {
+            Ok(found) => {
+                let found_str = found.as_str();
+                let template_name = match found_str
+                    .trim()
+                    .strip_prefix("<::Template{")
+                    .and_then(|s| s.strip_suffix("/>"))
+                    .map(|s| s.trim().trim_end_matches('}'))
+                {
+                    Some(name) if !name.is_empty() => name,
+                    _ => {
+                        errors.push(ProcessError {
+                            error_type: ErrorType::Syntax,
+                            item: WithItem::Template,
+                            path: PathBuf::new(),
+                            message: Some(format!(
+                                "Malformed template tag: '{}'. Expected <::Template{{Name}} />",
+                                found_str
+                            )),
+                        });
+                        continue;
+                    }
+                };
 
-            let result = get_template(src, template_name, hist.clone());
-            errors.extend(result.errors);
-            replacements.push((found_str.to_owned(), result.output));
+                let result = get_template(src, template_name, hist.clone());
+                errors.extend(result.errors);
+                replacements.push((found_str.to_owned(), result.output));
+            }
+            Err(e) => {
+                errors.push(ProcessError {
+                    error_type: ErrorType::Other,
+                    item: WithItem::Template,
+                    path: PathBuf::new(),
+                    message: Some(format!("Regex error while scanning for templates: {}", e)),
+                });
+            }
         }
     }
 

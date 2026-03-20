@@ -10,18 +10,27 @@ pub struct FileList {
     pub files: Vec<String>,
 }
 
-/// Extract YAML frontmatter from markdown content
-/// Returns (frontmatter_map, remaining_content)
+/// Result of frontmatter extraction: the key-value map, remaining content, and any warnings.
+pub struct FrontmatterResult {
+    pub map: HashMap<String, String>,
+    pub remaining: String,
+    pub warnings: Vec<ProcessError>,
+}
+
+/// Extract YAML frontmatter from markdown content.
+/// Returns the frontmatter map, remaining content, and any non-fatal warnings
+/// (e.g. unsupported value types that were skipped).
 pub fn extract_frontmatter(
     content: &str,
-) -> Result<(HashMap<String, String>, String), ProcessError> {
+    path: &PathBuf,
+) -> Result<FrontmatterResult, ProcessError> {
     let content = content.trim_start();
 
     if !content.starts_with("---") {
         return Err(ProcessError {
             error_type: ErrorType::Syntax,
             item: WithItem::Data,
-            path: PathBuf::new(),
+            path: path.clone(),
             message: Some("Frontmatter must start with '---'".to_string()),
         });
     }
@@ -33,16 +42,17 @@ pub fn extract_frontmatter(
         let remaining = &after_first_delimiter[end_pos + 4..].trim_start();
 
         // Parse YAML frontmatter
-        let yaml_value: serde_yaml::Value = serde_yaml::from_str(frontmatter_str)
-            .map_err(|e| ProcessError {
+        let yaml_value: serde_yaml::Value =
+            serde_yaml::from_str(frontmatter_str).map_err(|e| ProcessError {
                 error_type: ErrorType::Syntax,
                 item: WithItem::Data,
-                path: PathBuf::new(),
+                path: path.clone(),
                 message: Some(format!("Failed to parse YAML frontmatter: {}", e)),
             })?;
 
-        // Convert YAML to HashMap<String, String>
         let mut map = HashMap::new();
+        let mut warnings = Vec::new();
+
         if let serde_yaml::Value::Mapping(mapping) = yaml_value {
             for (key, value) in mapping {
                 if let serde_yaml::Value::String(k) = &key {
@@ -50,7 +60,37 @@ pub fn extract_frontmatter(
                         serde_yaml::Value::String(s) => s.clone(),
                         serde_yaml::Value::Number(n) => n.to_string(),
                         serde_yaml::Value::Bool(b) => b.to_string(),
-                        _ => String::new(),
+                        serde_yaml::Value::Null => {
+                            warnings.push(ProcessError {
+                                error_type: ErrorType::Syntax,
+                                item: WithItem::Data,
+                                path: path.clone(),
+                                message: Some(format!(
+                                    "Frontmatter key '{}' has a null value and was skipped",
+                                    k
+                                )),
+                            });
+                            continue;
+                        }
+                        other => {
+                            let type_name = match other {
+                                serde_yaml::Value::Sequence(_) => "array",
+                                serde_yaml::Value::Mapping(_) => "nested mapping",
+                                serde_yaml::Value::Tagged(_) => "tagged value",
+                                _ => "unsupported type",
+                            };
+                            warnings.push(ProcessError {
+                                error_type: ErrorType::Syntax,
+                                item: WithItem::Data,
+                                path: path.clone(),
+                                message: Some(format!(
+                                    "Frontmatter key '{}' has an unsupported type ({}) and was skipped. \
+                                     Only strings, numbers, and booleans are supported.",
+                                    k, type_name
+                                )),
+                            });
+                            continue;
+                        }
                     };
                     map.insert(k.clone(), v);
                 }
@@ -62,24 +102,28 @@ pub fn extract_frontmatter(
             return Err(ProcessError {
                 error_type: ErrorType::Syntax,
                 item: WithItem::Data,
-                path: PathBuf::new(),
+                path: path.clone(),
                 message: Some("Frontmatter must contain a 'title' field".to_string()),
             });
         }
 
-        Ok((map, remaining.to_string()))
+        Ok(FrontmatterResult {
+            map,
+            remaining: remaining.to_string(),
+            warnings,
+        })
     } else {
         Err(ProcessError {
             error_type: ErrorType::Syntax,
             item: WithItem::Data,
-            path: PathBuf::new(),
+            path: path.clone(),
             message: Some("Frontmatter must end with '---'".to_string()),
         })
     }
 }
 
-/// Load data from markdown files with frontmatter based on a TOML file list
-/// Returns a JSON array value compatible with the existing template system
+/// Load data from markdown files with frontmatter based on a TOML file list.
+/// Returns a JSON array value compatible with the existing template system.
 pub fn load_frontmatter_data(
     src: &PathBuf,
     name: &str,
@@ -130,14 +174,18 @@ pub fn load_frontmatter_data(
             }
         };
 
-        let (mut frontmatter, _) = match extract_frontmatter(&content) {
-            Ok((fm, remaining)) => (fm, remaining),
-            Err(mut e) => {
-                e.path = md_path.clone();
+        let fm_result = match extract_frontmatter(&content, &md_path) {
+            Ok(r) => r,
+            Err(e) => {
                 errors.push(e);
                 continue;
             }
         };
+
+        // Collect frontmatter warnings
+        errors.extend(fm_result.warnings);
+
+        let mut frontmatter = fm_result.map;
 
         // Generate entry-path and result-path from filename
         let file_stem = md_path

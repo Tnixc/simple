@@ -49,19 +49,35 @@ pub fn get_component_self(
         };
     }
 
-    let mut st = fs::read_to_string(&path)
-        .map_proc_err(WithItem::Component, ErrorType::Io, &path, None)
-        .inspect_err(|e| errors.push((*e).clone()))
-        .unwrap_or_else(|_| String::new());
+    let st = match fs::read_to_string(&path).map_proc_err(
+        WithItem::Component,
+        ErrorType::Io,
+        &path,
+        None,
+    ) {
+        Ok(content) => content,
+        Err(e) => {
+            return ProcessResult {
+                output: String::new(),
+                errors: vec![e],
+            };
+        }
+    };
 
-    if st.is_empty() && !errors.is_empty() {
+    if st.is_empty() {
+        errors.push(ProcessError {
+            error_type: ErrorType::Other,
+            item: WithItem::Component,
+            path: path.clone(),
+            message: Some("Component file is empty".to_string()),
+        });
         return ProcessResult {
             output: String::new(),
             errors,
         };
     }
 
-    st = kv_replace(targets, st);
+    let st = kv_replace(targets, st);
     let result = page(src, st, hist);
     errors.extend(result.errors);
     ProcessResult {
@@ -95,12 +111,28 @@ pub fn get_component_slot(
         };
     }
 
-    let mut st = fs::read_to_string(&path)
-        .map_proc_err(WithItem::Component, ErrorType::Io, &path, None)
-        .inspect_err(|e| errors.push((*e).clone()))
-        .unwrap_or_else(|_| String::new());
+    let st = match fs::read_to_string(&path).map_proc_err(
+        WithItem::Component,
+        ErrorType::Io,
+        &path,
+        None,
+    ) {
+        Ok(content) => content,
+        Err(e) => {
+            return ProcessResult {
+                output: String::new(),
+                errors: vec![e],
+            };
+        }
+    };
 
-    if st.is_empty() && !errors.is_empty() {
+    if st.is_empty() {
+        errors.push(ProcessError {
+            error_type: ErrorType::Other,
+            item: WithItem::Component,
+            path: path.clone(),
+            message: Some("Component file is empty".to_string()),
+        });
         return ProcessResult {
             output: String::new(),
             errors,
@@ -121,16 +153,26 @@ pub fn get_component_slot(
         };
     }
 
-    st = kv_replace(targets, st);
+    let mut st = kv_replace(targets, st);
     if let Some(content) = slot_content {
         let mut result = String::with_capacity(st.len() + content.len());
         let mut last_end = 0;
 
         for find in REGEX_SLOT.find_iter(&st) {
-            if let Ok(mat) = find {
-                result.push_str(&st[last_end..mat.start()]);
-                result.push_str(&content);
-                last_end = mat.end();
+            match find {
+                Ok(mat) => {
+                    result.push_str(&st[last_end..mat.start()]);
+                    result.push_str(&content);
+                    last_end = mat.end();
+                }
+                Err(e) => {
+                    errors.push(ProcessError {
+                        error_type: ErrorType::Other,
+                        item: WithItem::Component,
+                        path: path.clone(),
+                        message: Some(format!("Regex error while processing slot tags: {}", e)),
+                    });
+                }
             }
         }
         result.push_str(&st[last_end..]);
@@ -167,40 +209,55 @@ pub fn process_component(
     let mut replacements = Vec::new();
 
     for f in regex.find_iter(&output) {
-        if let Ok(found) = f {
-            let found_str = found.as_str();
-            let trim = found_str
-                .trim()
-                .strip_prefix('<')
-                .unwrap_or(found_str)
-                .trim_end_matches("/>")
-                .trim_end_matches('>')
-                .trim();
+        match f {
+            Ok(found) => {
+                let found_str = found.as_str();
+                let trim = found_str
+                    .trim()
+                    .strip_prefix('<')
+                    .unwrap_or(found_str)
+                    .trim_end_matches("/>")
+                    .trim_end_matches('>')
+                    .trim();
 
-            let name = trim.split_whitespace().next().unwrap_or(trim);
-            let targets = get_targets_kv(name, found_str)
-                .inspect_err(|e| errors.push((*e).clone()))
-                .unwrap_or_default();
+                let name = trim.split_whitespace().next().unwrap_or(trim);
+                let targets = get_targets_kv(name, found_str)
+                    .inspect_err(|e| errors.push((*e).clone()))
+                    .unwrap_or_default();
 
-            match component_type {
-                ComponentTypes::SelfClosing => {
-                    let result = get_component_self(src, name, targets, hist.clone());
-                    errors.extend(result.errors);
-                    replacements.push((found_str.to_owned(), result.output));
-                }
-                ComponentTypes::Wrapping => {
-                    let end = format!("</{}>", name);
-                    let slot_content = get_inside(output.clone(), found_str, &end);
-                    let result =
-                        get_component_slot(src, name, targets, slot_content.clone(), hist.clone());
-                    errors.extend(result.errors);
-
-                    if let Some(content) = slot_content {
-                        replacements.push((content, String::new()));
+                match component_type {
+                    ComponentTypes::SelfClosing => {
+                        let result = get_component_self(src, name, targets, hist.clone());
+                        errors.extend(result.errors);
+                        replacements.push((found_str.to_owned(), result.output));
                     }
-                    replacements.push((end, String::new()));
-                    replacements.push((found_str.to_owned(), result.output));
+                    ComponentTypes::Wrapping => {
+                        let end = format!("</{}>", name);
+                        let slot_content = get_inside(output.clone(), found_str, &end);
+                        let result = get_component_slot(
+                            src,
+                            name,
+                            targets,
+                            slot_content.clone(),
+                            hist.clone(),
+                        );
+                        errors.extend(result.errors);
+
+                        if let Some(content) = slot_content {
+                            replacements.push((content, String::new()));
+                        }
+                        replacements.push((end, String::new()));
+                        replacements.push((found_str.to_owned(), result.output));
+                    }
                 }
+            }
+            Err(e) => {
+                errors.push(ProcessError {
+                    error_type: ErrorType::Other,
+                    item: WithItem::Component,
+                    path: PathBuf::new(),
+                    message: Some(format!("Regex error while scanning for components: {}", e)),
+                });
             }
         }
     }

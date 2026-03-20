@@ -16,7 +16,7 @@ use color_print::{cformat, cprintln};
 use dev::spawn_watcher;
 use error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use once_cell::sync::OnceCell;
-use std::{env, fs, path::PathBuf, time::Instant};
+use std::{env, fs, path::PathBuf, process, time::Instant};
 use utils::print_vec_errs;
 
 pub static IS_DEV: OnceCell<bool> = OnceCell::new();
@@ -48,7 +48,10 @@ fn main() {
         }
         "build" => {
             let _ = IS_DEV.set(false);
-            let _ = build(args).inspect_err(print_vec_errs);
+            if let Err(errors) = build(args) {
+                print_vec_errs(&errors);
+                process::exit(1);
+            }
         }
         "new" => {
             let _ = new::new(args).inspect_err(|e| {
@@ -87,16 +90,35 @@ fn build(args: Vec<String>) -> Result<(), Vec<ProcessError>> {
     let public = src.join("public");
 
     if !dir.join(working_dir).exists() {
-        let _ = fs::create_dir(dir.join(working_dir))
-            .map_proc_err(WithItem::File, ErrorType::Io, &dir.join(working_dir), None)
-            .inspect_err(|e| errors.push((*e).clone()));
+        if let Err(e) = fs::create_dir(dir.join(working_dir)).map_proc_err(
+            WithItem::File,
+            ErrorType::Io,
+            &dir.join(working_dir),
+            None,
+        ) {
+            errors.push(e);
+        }
     }
 
-    process_pages(&dir, &src, src.clone(), pages)?;
+    if let Err(mut page_errors) = process_pages(&dir, &src, src.clone(), pages) {
+        errors.append(&mut page_errors);
+    }
 
-    let _ = utils::copy_into(&public, &dist).inspect_err(|e| errors.push((*e).clone()));
+    if let Err(e) = utils::copy_into(&public, &dist) {
+        errors.push(e);
+    }
+
     let duration = Instant::now().duration_since(start).as_millis();
 
-    cprintln!("<g><s>Done</></> in {duration} ms.");
-    Ok(())
+    if errors.is_empty() {
+        cprintln!("<g><s>Done</></> in {duration} ms.");
+        Ok(())
+    } else {
+        cprintln!(
+            "<y><s>Done</></> in {duration} ms with {} error{}.",
+            errors.len(),
+            if errors.len() == 1 { "" } else { "s" }
+        );
+        Err(errors)
+    }
 }

@@ -41,7 +41,10 @@ fn spawn_websocket_handler(receiver: Receiver<String>, src: PathBuf, ws_port: u1
     let event_hub = match simple_websockets::launch(ws_port) {
         Ok(hub) => hub,
         Err(e) => {
-            eprintln!("Failed to launch websocket server on port {}: {:?}", ws_port, e);
+            eprintln!(
+                "Failed to launch websocket server on port {}: {:?}",
+                ws_port, e
+            );
             return;
         }
     };
@@ -104,23 +107,39 @@ fn handle_markdown_update(json: &serde_json::Value, src: &PathBuf) {
             Some(s) => s.trim(),
             None => return,
         };
-        if let Ok(files) = utils::walk_dir(src) {
-            for path in files {
-                if let Ok(file_content) = fs::read_to_string(&path) {
-                    if file_content.contains(original) {
-                        let new_content = file_content.replace(original, content);
-                        if let Err(e) = fs::write(&path, new_content) {
+        match utils::walk_dir(src) {
+            Ok(files) => {
+                for path in files {
+                    match fs::read_to_string(&path) {
+                        Ok(file_content) => {
+                            if file_content.contains(original) {
+                                let new_content = file_content.replace(original, content);
+                                if let Err(e) = fs::write(&path, new_content) {
+                                    eprintln!(
+                                        "{}",
+                                        cformat!(
+                                            "<s><r>Failed to update file from edit:</></>: {e}"
+                                        )
+                                    );
+                                }
+                                break;
+                            }
+                        }
+                        Err(e) => {
                             eprintln!(
                                 "{}",
-                                cformat!("<s><r>Failed to update file from edit:</></>: {e}")
+                                cformat!(
+                                    "<s><y>Warning:</></> Failed to read {} during markdown update: {e}",
+                                    path.display()
+                                )
                             );
                         }
-                        break;
                     }
                 }
             }
-        } else if let Err(e) = utils::walk_dir(src) {
-            eprintln!("{}", cformat!("<s><r>Failed to walk directory:</></>: {e}"));
+            Err(e) => {
+                eprintln!("{}", cformat!("<s><r>Failed to walk directory:</></>: {e}"));
+            }
         }
     }
 }
