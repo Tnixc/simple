@@ -3,6 +3,7 @@ use crate::error::{ErrorType, MapProcErr, ProcessError, WithItem};
 use color_print::cformat;
 use fancy_regex::Regex;
 use once_cell::sync::Lazy;
+use std::collections::HashSet;
 use std::fs;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
@@ -12,6 +13,61 @@ static KV_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"(\w+)=(['"])(?:(?!\2).)*\2"#)
         .expect("Regex failed to parse, this shouldn't happen")
 });
+
+static PLACEHOLDER_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"\$\{([A-Za-z_][A-Za-z0-9_-]*)\}"#)
+        .expect("Regex failed to parse, this shouldn't happen")
+});
+
+const VAR_OPEN_PLACEHOLDER: &str = "\x00simple_var_open\x00";
+
+/// Replace tokens only inside fenced code blocks (``` / ~~~), leaving text
+/// outside fences untouched.
+pub fn shield_fenced_code_with_replacements(input: &str, replacements: &[(&str, &str)]) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut in_fence = false;
+    let mut fence_str = String::new();
+
+    for line in input.split_inclusive('\n') {
+        let trimmed = line.trim_start();
+
+        if in_fence {
+            if trimmed.starts_with(&fence_str)
+                && trimmed[fence_str.len()..]
+                    .trim_start_matches(fence_str.chars().next().unwrap_or('`'))
+                    .trim()
+                    .is_empty()
+            {
+                in_fence = false;
+                out.push_str(line);
+            } else {
+                let mut replaced = line.to_string();
+                for (from, to) in replacements {
+                    replaced = replaced.replace(from, to);
+                }
+                out.push_str(&replaced);
+            }
+        } else {
+            let fence_char = if trimmed.starts_with("```") {
+                Some('`')
+            } else if trimmed.starts_with("~~~") {
+                Some('~')
+            } else {
+                None
+            };
+
+            if let Some(ch) = fence_char {
+                let fence_len = trimmed.bytes().take_while(|&b| b == ch as u8).count();
+                fence_str = ch.to_string().repeat(fence_len);
+                in_fence = true;
+            }
+
+            out.push_str(line);
+        }
+    }
+
+    out
+}
 
 pub fn get_targets_kv<'a>(
     name: &str,
@@ -58,19 +114,44 @@ pub fn get_targets_kv<'a>(
 }
 
 pub fn kv_replace(kv: Vec<(&str, &str)>, from: String) -> String {
-    if kv.is_empty() {
-        return from;
+    let provided_keys: HashSet<&str> = kv.iter().map(|(k, _)| *k).collect();
+    let mut unresolved = HashSet::new();
+
+    let mut result = shield_fenced_code_with_replacements(&from, &[("${", VAR_OPEN_PLACEHOLDER)]);
+
+    for caps in PLACEHOLDER_REGEX.captures_iter(&result) {
+        if let Ok(capture) = caps {
+            if let Some(key_match) = capture.get(1) {
+                let key = key_match.as_str();
+                if !provided_keys.contains(key) {
+                    unresolved.insert(key.to_string());
+                }
+            }
+        }
     }
 
-    let mut result = from;
+    if !unresolved.is_empty() {
+        let mut missing: Vec<String> = unresolved.into_iter().collect();
+        missing.sort();
+        eprintln!(
+            "{}",
+            cformat!(
+                "<y>Warning</>: Missing values for placeholders {}. Using original content as fallback.",
+                missing
+                    .iter()
+                    .map(|k| format!("${{{}}}", k))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        );
+    }
+
     for (k, v) in kv {
-        if !result.contains(k) {
-            continue;
-        }
         let key = format!("${{{k}}}");
         result = result.replace(&key, v);
     }
-    result
+
+    result.replace(VAR_OPEN_PLACEHOLDER, "${")
 }
 
 pub fn get_inside(input: String, from: &str, to: &str) -> Option<String> {
@@ -235,6 +316,14 @@ mod tests {
         let input = "Hello {world} how are you?".to_string();
         let result = get_inside(input, "{", "}");
         assert_eq!(result, Some("world".to_string()));
+    }
+
+    #[test]
+    fn test_kv_replace_skips_fenced_code_blocks() {
+        let kv = vec![("color", "red")];
+        let from = "Outside: ${color}\n```html\n<div>${color}</div>\n```".to_string();
+        let result = kv_replace(kv, from);
+        assert_eq!(result, "Outside: red\n```html\n<div>${color}</div>\n```");
     }
 
     #[test]

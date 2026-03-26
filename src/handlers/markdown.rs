@@ -14,58 +14,6 @@ use crate::IS_DEV;
 const MD_OPEN_PLACEHOLDER: &str = "\x00simple_md_open\x00";
 const MD_CLOSE_PLACEHOLDER: &str = "\x00simple_md_close\x00";
 
-/// Temporarily replace `<markdown>` and `</markdown>` inside fenced code blocks
-/// with placeholders so the block-finding regex won't match them. Works line-by-
-/// line, mirroring how CommonMark defines fenced code blocks.
-fn shield_fenced_code(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut in_fence = false;
-    let mut fence_str = String::new(); // the opening fence chars, e.g. "```" or "~~~~"
-
-    for line in input.split_inclusive('\n') {
-        let trimmed = line.trim_start();
-
-        if in_fence {
-            // A closing fence must start with at least the same number of the same char
-            if trimmed.starts_with(&fence_str)
-                && trimmed[fence_str.len()..]
-                    .trim_start_matches(fence_str.chars().next().unwrap_or('`'))
-                    .trim()
-                    .is_empty()
-            {
-                in_fence = false;
-                out.push_str(line);
-            } else {
-                // Inside a fence — replace markdown tags with placeholders
-                out.push_str(
-                    &line
-                        .replace("<markdown>", MD_OPEN_PLACEHOLDER)
-                        .replace("</markdown>", MD_CLOSE_PLACEHOLDER),
-                );
-            }
-        } else {
-            let fc = if trimmed.starts_with("```") {
-                Some('`')
-            } else if trimmed.starts_with("~~~") {
-                Some('~')
-            } else {
-                None
-            };
-
-            if let Some(c) = fc {
-                let fence_len = trimmed.bytes().take_while(|&b| b == c as u8).count();
-                fence_str = c.to_string().repeat(fence_len);
-                in_fence = true;
-            }
-            out.push_str(line);
-        }
-    }
-
-    // Handle input that doesn't end with '\n' — split_inclusive won't miss it,
-    // but an unclosed fence just means the rest was inside the fence (already handled).
-    out
-}
-
 /// Restore placeholders back to real markdown tags.
 fn unshield(s: &str) -> String {
     s.replace(MD_OPEN_PLACEHOLDER, "<markdown>")
@@ -211,7 +159,13 @@ pub fn render_markdown(input: String) -> ProcessResult {
     let is_dev = *IS_DEV.get().unwrap_or(&false);
 
     // Shield markdown tags inside fenced code blocks so the regex skips them
-    let shielded = shield_fenced_code(&input);
+    let shielded = utils::shield_fenced_code_with_replacements(
+        &input,
+        &[
+            ("<markdown>", MD_OPEN_PLACEHOLDER),
+            ("</markdown>", MD_CLOSE_PLACEHOLDER),
+        ],
+    );
     let mut result = String::with_capacity(input.len() + (input.len() >> 2));
     let mut last_end = 0;
 
