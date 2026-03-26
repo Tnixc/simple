@@ -11,6 +11,67 @@ use crate::handlers::katex_assets;
 use crate::utils::{self, ProcessResult};
 use crate::IS_DEV;
 
+const MD_OPEN_PLACEHOLDER: &str = "\x00simple_md_open\x00";
+const MD_CLOSE_PLACEHOLDER: &str = "\x00simple_md_close\x00";
+
+/// Temporarily replace `<markdown>` and `</markdown>` inside fenced code blocks
+/// with placeholders so the block-finding regex won't match them. Works line-by-
+/// line, mirroring how CommonMark defines fenced code blocks.
+fn shield_fenced_code(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut in_fence = false;
+    let mut fence_str = String::new(); // the opening fence chars, e.g. "```" or "~~~~"
+
+    for line in input.split_inclusive('\n') {
+        let trimmed = line.trim_start();
+
+        if in_fence {
+            // A closing fence must start with at least the same number of the same char
+            if trimmed.starts_with(&fence_str)
+                && trimmed[fence_str.len()..]
+                    .trim_start_matches(fence_str.chars().next().unwrap_or('`'))
+                    .trim()
+                    .is_empty()
+            {
+                in_fence = false;
+                out.push_str(line);
+            } else {
+                // Inside a fence — replace markdown tags with placeholders
+                out.push_str(
+                    &line
+                        .replace("<markdown>", MD_OPEN_PLACEHOLDER)
+                        .replace("</markdown>", MD_CLOSE_PLACEHOLDER),
+                );
+            }
+        } else {
+            let fc = if trimmed.starts_with("```") {
+                Some('`')
+            } else if trimmed.starts_with("~~~") {
+                Some('~')
+            } else {
+                None
+            };
+
+            if let Some(c) = fc {
+                let fence_len = trimmed.bytes().take_while(|&b| b == c as u8).count();
+                fence_str = c.to_string().repeat(fence_len);
+                in_fence = true;
+            }
+            out.push_str(line);
+        }
+    }
+
+    // Handle input that doesn't end with '\n' — split_inclusive won't miss it,
+    // but an unclosed fence just means the rest was inside the fence (already handled).
+    out
+}
+
+/// Restore placeholders back to real markdown tags.
+fn unshield(s: &str) -> String {
+    s.replace(MD_OPEN_PLACEHOLDER, "<markdown>")
+        .replace(MD_CLOSE_PLACEHOLDER, "</markdown>")
+}
+
 static MARKDOWN_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"(?<!<!--)<markdown>([\s\S]+?)<\/markdown>(?!-->)"#)
         .expect("Regex failed to parse. This shouldn't happen.")
@@ -148,47 +209,15 @@ pub fn render_markdown(input: String) -> ProcessResult {
     let options = create_markdown_options();
 
     let is_dev = *IS_DEV.get().unwrap_or(&false);
+
+    // Shield markdown tags inside fenced code blocks so the regex skips them
+    let shielded = shield_fenced_code(&input);
     let mut result = String::with_capacity(input.len() + (input.len() >> 2));
     let mut last_end = 0;
 
-    for captures in MARKDOWN_REGEX.find_iter(&input) {
-        match captures {
-            Ok(mat) => {
-                let start = mat.start();
-                let end = mat.end();
-
-                result.push_str(&input[last_end..start]);
-
-                let markdown_content = &input[start + 10..end - 11];
-                let unindented = utils::unindent(markdown_content);
-                let rendered = markdown_to_html_with_plugins(&unindented, &options, &plugins);
-
-                // Render KaTeX math expressions
-                let (rendered, katex_errors) = render_katex(&rendered);
-                errors.extend(katex_errors);
-
-                if is_dev {
-                    result.push_str(r#"<div style='display: contents;' data-markdown-source=""#);
-                    for ch in unindented.trim().chars() {
-                        match ch {
-                            '"' => result.push_str("&quot;"),
-                            '&' => result.push_str("&amp;"),
-                            '<' => result.push_str("&lt;"),
-                            '>' => result.push_str("&gt;"),
-                            _ => result.push(ch),
-                        }
-                    }
-                    result.push_str(r#"">"#);
-                    result.push_str(&rendered);
-                    result.push_str("</div>");
-                } else {
-                    result.push_str(r#"<div style='display: contents;'>"#);
-                    result.push_str(&rendered);
-                    result.push_str("</div>");
-                }
-
-                last_end = end;
-            }
+    for captures in MARKDOWN_REGEX.find_iter(&shielded) {
+        let mat = match captures {
+            Ok(m) => m,
             Err(e) => {
                 errors.push(ProcessError {
                     error_type: ErrorType::Other,
@@ -196,11 +225,47 @@ pub fn render_markdown(input: String) -> ProcessResult {
                     path: PathBuf::new(),
                     message: Some(format!("Regex error while scanning markdown blocks: {}", e)),
                 });
+                continue;
             }
+        };
+        let start = mat.start();
+        let end = mat.end();
+
+        result.push_str(&shielded[last_end..start]);
+
+        // Extract content between <markdown> and </markdown>, restore placeholders
+        let markdown_content = unshield(&shielded[start + 10..end - 11]);
+        let unindented = utils::unindent(&markdown_content);
+        let rendered = markdown_to_html_with_plugins(&unindented, &options, &plugins);
+
+        // Render KaTeX math expressions
+        let (rendered, katex_errors) = render_katex(&rendered);
+        errors.extend(katex_errors);
+
+        if is_dev {
+            result.push_str(r#"<div style='display: contents;' data-markdown-source=""#);
+            for ch in unindented.trim().chars() {
+                match ch {
+                    '"' => result.push_str("&quot;"),
+                    '&' => result.push_str("&amp;"),
+                    '<' => result.push_str("&lt;"),
+                    '>' => result.push_str("&gt;"),
+                    _ => result.push(ch),
+                }
+            }
+            result.push_str(r#"">"#);
+            result.push_str(&rendered);
+            result.push_str("</div>");
+        } else {
+            result.push_str(r#"<div style='display: contents;'>"#);
+            result.push_str(&rendered);
+            result.push_str("</div>");
         }
+
+        last_end = end;
     }
 
-    result.push_str(&input[last_end..]);
+    result.push_str(&shielded[last_end..]);
     ProcessResult {
         output: result,
         errors,

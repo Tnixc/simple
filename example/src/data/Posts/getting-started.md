@@ -40,13 +40,13 @@ Create a file at `src/pages/index.html`:
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-  <title>My Site</title>
-</head>
-<body>
-  <h1>Hello World!</h1>
-  <-Template{Posts} />
-</body>
+  <head>
+    <title>My Site</title>
+  </head>
+  <body>
+    <h1>Hello World!</h1>
+    <::Template{Posts} />
+  </body>
 </html>
 ```
 

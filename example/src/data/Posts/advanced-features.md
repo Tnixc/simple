@@ -24,7 +24,7 @@ In your component file:
 
 ```html
 <button class="btn btn-${color} btn-${size}">
-  <slot>Default Text</slot>
+    <slot>Default Text</slot>
 </button>
 ```
 
@@ -78,6 +78,7 @@ You can use the `<markdown>` component anywhere:
   **Bold text** and *italic text*
 </markdown>
 ```
+
 
 ## Tips and Tricks
 
