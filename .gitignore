@@ -2,4 +2,5 @@
 *.local
 /testing
 .DS_Store
-/example
+/example/dev
+/example/dist

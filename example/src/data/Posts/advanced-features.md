@@ -17,14 +17,14 @@ Now that you're familiar with the basics, let's explore some of Simple's more ad
 Components can accept props to make them more flexible:
 
 ```html
-<Button color="blue" size="large">Click Me</Button>
+<button color="blue" size="large">Click Me</button>
 ```
 
 In your component file:
 
 ```html
 <button class="btn btn-${color} btn-${size}">
-    <slot>Default Text</slot>
+  <slot>Default Text</slot>
 </button>
 ```
 
@@ -72,13 +72,8 @@ Much cleaner! The `--entry-path`, `--result-path`, and `link` fields are automat
 You can use the `<markdown>` component anywhere:
 
 ```html
-<markdown>
-  # This is rendered as markdown
-
-  **Bold text** and *italic text*
-</markdown>
+<markdown> # This is rendered as markdown **Bold text** and *italic text* </markdown>
 ```
-
 
 ## Tips and Tricks
 

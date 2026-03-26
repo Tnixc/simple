@@ -1,0 +1,108 @@
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  background: #f7f7f5;
+  color: #1f2221;
+  font:
+    16px/1.6 "Segoe UI",
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.site-header {
+  margin-bottom: 2rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #d7dbd8;
+}
+
+.site-title,
+.post-title,
+.post-heading {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.2;
+}
+
+.site-title,
+.post-title {
+  font-size: 2rem;
+}
+
+.post-heading {
+  font-size: 1.3rem;
+}
+
+.site-subtitle,
+.info,
+.site-footer,
+.post-footer,
+.back-link {
+  color: #5e6662;
+}
+
+.posts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.post-card {
+  margin-bottom: 0.75rem;
+}
+
+.post-card a {
+  display: block;
+  padding: 0.9rem 1rem;
+  border: 1px solid #d7dbd8;
+  background: #fcfcfb;
+  color: inherit;
+  text-decoration: none;
+}
+
+.info {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 0.9rem;
+}
+
+.info span {
+  margin-right: 0.75rem;
+}
+
+.description {
+  margin: 0;
+}
+
+a {
+  color: #2b4f59;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.post-content pre {
+  padding: 0.75rem;
+  overflow-x: auto;
+  background: #ecefed;
+  border: 1px solid #d7dbd8;
+}
+
+.post-content code {
+  background: #ecefed;
+  padding: 0.05em 0.3em;
+}
+
+.site-footer,
+.post-footer {
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #d7dbd8;
+  font-size: 0.95rem;
+}
